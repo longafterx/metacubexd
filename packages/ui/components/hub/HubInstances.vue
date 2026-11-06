@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { HubInstance } from '~/utils/hub'
+import type { HubControllerProtocol } from '~/utils/hubController'
 import {
   IconEdit,
   IconExternalLink,
@@ -9,6 +10,7 @@ import {
   IconTrash,
 } from '@tabler/icons-vue'
 import { hubErrorKey, hubRequest } from '~/utils/hub'
+import { hubControllerURL, splitHubControllerURL } from '~/utils/hubController'
 
 const { t } = useI18n()
 const hub = useHubStore()
@@ -29,16 +31,21 @@ const deleteError = ref('')
 const notice = ref('')
 const legacy = ref(false)
 const originalURL = ref('')
+const protocol = ref<HubControllerProtocol>('http:')
 const secretAction = ref<'keep' | 'replace' | 'none'>('none')
 const connection = ref<{ ok: boolean; message: string } | null>(null)
 let configRequest: AbortController | undefined
 const form = reactive({
   name: '',
-  controller_url: '',
+  controller_host: '',
+  controller_port: '9090' as string | number,
   secret: '',
   enabled: true,
   collect_enabled: true,
 })
+const controllerURL = computed(() =>
+  hubControllerURL(form.controller_host, form.controller_port, protocol.value),
+)
 const locked = computed(() => busy.value || testing.value)
 const editorTitle = computed(() =>
   editing.value
@@ -54,7 +61,13 @@ onMounted(() => {
 onBeforeUnmount(() => configRequest?.abort())
 // 连接参数改变后，旧的测试结果不再代表当前表单；密钥仅保存在弹窗的临时内存里。
 watch(
-  () => [form.controller_url, form.secret, secretAction.value],
+  () => [
+    form.controller_host,
+    form.controller_port,
+    protocol.value,
+    form.secret,
+    secretAction.value,
+  ],
   () => {
     connection.value = null
   },
@@ -71,11 +84,13 @@ function clearEditor() {
   loadingConfig.value = false
   editorError.value = ''
   originalURL.value = ''
+  protocol.value = 'http:'
   secretAction.value = 'none'
   connection.value = null
   Object.assign(form, {
     name: '',
-    controller_url: '',
+    controller_host: '',
+    controller_port: '9090',
     secret: '',
     enabled: true,
     collect_enabled: true,
@@ -99,7 +114,15 @@ async function loadConfig() {
       { signal: request.signal },
     )
     if (request.signal.aborted) return
-    form.controller_url = originalURL.value = data.controller_url
+    const address = splitHubControllerURL(data.controller_url)
+    form.controller_host = address.host
+    form.controller_port = address.port
+    protocol.value = address.protocol
+    originalURL.value = hubControllerURL(
+      address.host,
+      address.port,
+      address.protocol,
+    )
   } catch (e) {
     if (!request.signal.aborted) editorError.value = t(hubErrorKey(e))
   } finally {
@@ -120,7 +143,7 @@ function edit(item: HubInstance) {
 }
 function credentials() {
   const body: Record<string, unknown> = {
-    controller_url: form.controller_url.trim(),
+    controller_url: controllerURL.value,
   }
   if (secretAction.value === 'replace') body.secret = form.secret
   // 无密钥实例的普通编辑省略 Secret，避免改名/停用也触发连接配置的 DNS 校验。
@@ -132,6 +155,10 @@ function credentials() {
   return body
 }
 async function probe() {
+  if (!controllerURL.value) {
+    editorError.value = t('hub.errors.invalidAddress')
+    return false
+  }
   testing.value = true
   connection.value = null
   try {
@@ -163,6 +190,10 @@ async function probe() {
 async function save() {
   if (locked.value || loadingConfig.value) return
   editorError.value = ''
+  if (!controllerURL.value) {
+    editorError.value = t('hub.errors.invalidAddress')
+    return
+  }
   busy.value = true
   try {
     // 新增的启用实例先验证连接，失败时不创建记录；停用实例允许预先保存。
@@ -435,21 +466,42 @@ function select(item: HubInstance) {
               autocomplete="off"
             />
           </label>
-          <label for="hub-url" class="flex flex-col gap-2 text-sm font-medium"
-            >{{ t('hub.url') }}
-            <input
-              id="hub-url"
-              v-model="form.controller_url"
-              class="input w-full font-mono text-sm"
-              type="url"
-              required
-              placeholder="http://192.168.1.2:9090"
-              autocomplete="off"
-            />
-            <span class="text-xs font-normal text-base-content/60">{{
-              t('hub.urlHint')
-            }}</span>
-          </label>
+          <div class="grid grid-cols-[minmax(0,1fr)_7rem] gap-3">
+            <label
+              for="hub-host"
+              class="flex min-w-0 flex-col gap-2 text-sm font-medium"
+              >{{ t('hub.controllerHost') }}
+              <input
+                id="hub-host"
+                v-model="form.controller_host"
+                class="input w-full font-mono text-sm"
+                required
+                placeholder="100.111.37.112"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </label>
+            <label
+              for="hub-port"
+              class="flex flex-col gap-2 text-sm font-medium"
+              >{{ t('hub.controllerPort') }}
+              <input
+                id="hub-port"
+                v-model="form.controller_port"
+                class="input w-full font-mono text-sm"
+                type="number"
+                min="1"
+                max="65535"
+                step="1"
+                required
+                placeholder="9090"
+                autocomplete="off"
+              />
+            </label>
+            <p class="col-span-2 text-xs font-normal text-base-content/60">
+              {{ t('hub.controllerAddressHint') }}
+            </p>
+          </div>
           <div class="flex flex-col gap-2 text-sm">
             <label for="hub-secret-action" class="font-medium">{{
               t('hub.secret')
@@ -533,7 +585,7 @@ function select(item: HubInstance) {
           :disabled="
             busy ||
             loadingConfig ||
-            !form.controller_url.trim() ||
+            !controllerURL ||
             (secretAction === 'replace' && !form.secret)
           "
           @click="probe"

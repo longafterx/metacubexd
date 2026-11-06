@@ -724,10 +724,22 @@
       "rateLimit": "Too many changes. Please try again shortly.",
       "session": "Your session expired. Sign in again.",
       "storage": "The change could not be saved. Please try again.",
-      "request": "The request failed. Please try again."
+      "request": "The request failed. Please try again.",
+      "invalidAddress": "Enter a valid Controller IP or host and a port between 1 and 65535. Do not include a protocol or path.",
+      "refused": "The target port refused the connection. Check whether Mihomo is running, the Controller is listening on this address, and the port is exposed.",
+      "timeout": "The connection timed out. Check the route, Tailscale connectivity and firewall rules.",
+      "auth": "The Controller rejected authentication. Check its Secret; choose No Secret only when none is configured.",
+      "dns": "The Controller host could not be resolved. Check its IP or hostname.",
+      "tls": "The Controller TLS handshake or certificate validation failed.",
+      "redirect": "The Controller redirected /version. Check whether this is the Controller API port.",
+      "response": "The service did not return a valid Mihomo version response. Check the Controller port.",
+      "httpService": "The service returned an unexpected HTTP status. Check whether the port belongs to the Mihomo Controller API."
     },
     "listRefreshFailed": "Instance list refresh failed. Showing the last result; completed changes are preserved.",
     "instanceDisabled": "Instance disabled",
-    "collectionPaused": "Not collecting"
+    "collectionPaused": "Not collecting",
+    "controllerHost": "Controller IP / host",
+    "controllerPort": "Port",
+    "controllerAddressHint": "Enter the Controller IP and port only. New instances use HTTP automatically; port 9090 is the default."
   }
 }

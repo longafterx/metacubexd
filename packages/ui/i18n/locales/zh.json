@@ -780,10 +780,22 @@
       "rateLimit": "操作过于频繁，请稍后重试。",
       "session": "登录已失效，请重新登录。",
       "storage": "变更未能保存，请稍后重试。",
-      "request": "请求失败，请稍后重试。"
+      "request": "请求失败，请稍后重试。",
+      "invalidAddress": "请输入有效的 Controller IP 或主机名，端口范围为 1–65535；不要包含协议或路径。",
+      "refused": "目标端口拒绝连接。请检查 Mihomo 是否正在运行、Controller 是否监听此地址，以及端口是否已对外开放。",
+      "timeout": "连接超时，请检查网络路由、Tailscale 连通性及防火墙规则。",
+      "auth": "Controller 拒绝鉴权，请检查 Secret；只有未配置 Secret 时才选择“无密钥”。",
+      "dns": "无法解析 Controller 主机名，请检查 IP 或主机名。",
+      "tls": "Controller TLS 握手或证书校验失败。",
+      "redirect": "Controller 对 /version 返回了重定向，请确认填写的是 Controller API 端口。",
+      "response": "服务没有返回有效的 Mihomo 版本信息，请确认 Controller 端口正确。",
+      "httpService": "服务返回了异常 HTTP 状态，请确认此端口提供 Mihomo Controller API。"
     },
     "listRefreshFailed": "实例列表刷新失败，当前显示上次结果；已完成的操作不受影响。",
     "instanceDisabled": "实例停用",
-    "collectionPaused": "未采集"
+    "collectionPaused": "未采集",
+    "controllerHost": "Controller IP / 主机",
+    "controllerPort": "端口",
+    "controllerAddressHint": "只填写 Controller 的 IP 和端口，无需填写协议；新增默认使用 HTTP，默认端口 9090。"
   }
 }
