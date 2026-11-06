@@ -40,8 +40,6 @@ const form = reactive({
   controller_host: '',
   controller_port: '9090' as string | number,
   secret: '',
-  enabled: true,
-  collect_enabled: true,
 })
 const controllerURL = computed(() =>
   hubControllerURL(form.controller_host, form.controller_port, protocol.value),
@@ -92,8 +90,6 @@ function clearEditor() {
     controller_host: '',
     controller_port: '9090',
     secret: '',
-    enabled: true,
-    collect_enabled: true,
   })
 }
 function add() {
@@ -134,8 +130,6 @@ function edit(item: HubInstance) {
   editing.value = { ...item }
   Object.assign(form, {
     name: item.name,
-    enabled: item.enabled,
-    collect_enabled: item.collect_enabled,
   })
   secretAction.value = item.has_secret ? 'keep' : 'none'
   editor.value?.open()
@@ -146,7 +140,7 @@ function credentials() {
     controller_url: controllerURL.value,
   }
   if (secretAction.value === 'replace') body.secret = form.secret
-  // 无密钥实例的普通编辑省略 Secret，避免改名/停用也触发连接配置的 DNS 校验。
+  // 无密钥实例的普通编辑省略 Secret，避免仅改名也触发连接配置的 DNS 校验。
   else if (
     secretAction.value === 'none' &&
     (!editing.value || editing.value.has_secret)
@@ -196,19 +190,11 @@ async function save() {
   }
   busy.value = true
   try {
-    // 新增的启用实例先验证连接，失败时不创建记录；停用实例允许预先保存。
-    if (
-      !editing.value &&
-      form.enabled &&
-      !connection.value?.ok &&
-      !(await probe())
-    )
-      return
+    // 接入即由 Hub 管理并采集；新增前先验证连接，失败时不创建记录。
+    if (!editing.value && !connection.value?.ok && !(await probe())) return
     const body: Record<string, unknown> = {
       ...credentials(),
       name: form.name.trim(),
-      enabled: form.enabled,
-      collect_enabled: form.collect_enabled,
     }
     if (editing.value && body.controller_url === originalURL.value)
       delete body.controller_url
@@ -251,17 +237,6 @@ async function confirmDelete() {
     deletion.value?.close(true)
   } catch (e) {
     deleteError.value = t(hubErrorKey(e))
-  } finally {
-    busy.value = false
-  }
-}
-async function toggle(item: HubInstance) {
-  busy.value = true
-  error.value = ''
-  try {
-    await hub.save(item.id, { enabled: !item.enabled })
-  } catch (e) {
-    error.value = t(hubErrorKey(e))
   } finally {
     busy.value = false
   }
@@ -351,15 +326,14 @@ function select(item: HubInstance) {
             <div class="flex flex-wrap items-center gap-2">
               <h2 class="font-semibold break-all">{{ item.name }}</h2>
               <span
-                v-if="endpoints.selectedEndpoint === item.id && item.enabled"
+                v-if="endpoints.selectedEndpoint === item.id"
                 class="badge badge-outline badge-sm badge-primary"
                 >{{ t('hub.current') }}</span
               >
             </div>
             <p class="mt-1 text-xs text-base-content/60">
               {{ item.has_secret ? t('hub.secretStored') : t('hub.noSecret') }}
-              · {{ t('hub.collect') }}:
-              {{ item.collect_enabled ? t('hub.yes') : t('hub.no') }}
+              · {{ t('hub.managed') }}
             </p>
           </div>
           <span
@@ -369,13 +343,7 @@ function select(item: HubInstance) {
                 ? 'text-success'
                 : 'text-base-content/70'
             "
-            >{{
-              !item.enabled
-                ? t('hub.instanceDisabled')
-                : !item.collect_enabled
-                  ? t('hub.collectionPaused')
-                  : t(`hub.status.${item.collector_status}`)
-            }}</span
+            >{{ t(`hub.status.${item.collector_status}`) }}</span
           >
         </div>
         <div
@@ -392,7 +360,7 @@ function select(item: HubInstance) {
           <div class="flex flex-wrap gap-1">
             <button
               class="btn btn-ghost btn-sm"
-              :disabled="!item.enabled || locked"
+              :disabled="locked"
               @click="select(item)"
             >
               <IconExternalLink :size="15" />{{ t('hub.openDashboard') }}
@@ -403,13 +371,6 @@ function select(item: HubInstance) {
               @click="edit(item)"
             >
               <IconEdit :size="15" />{{ t('hub.edit') }}
-            </button>
-            <button
-              class="btn btn-ghost btn-sm"
-              :disabled="locked"
-              @click="toggle(item)"
-            >
-              {{ item.enabled ? t('hub.disable') : t('hub.enable') }}
             </button>
             <button
               class="btn btn-ghost text-error btn-sm"
@@ -537,27 +498,11 @@ function select(item: HubInstance) {
               {{ t('hub.secretHint') }}
             </p>
           </div>
-          <div class="space-y-4 rounded-xl border border-base-content/10 p-4">
-            <label class="flex items-center justify-between gap-4 text-sm"
-              ><span>{{ t('hub.enabled') }}</span
-              ><input
-                id="hub-enabled"
-                v-model="form.enabled"
-                type="checkbox"
-                class="toggle toggle-primary toggle-sm"
-            /></label>
-            <label class="flex items-center justify-between gap-4 text-sm"
-              ><span>{{ t('hub.collect') }}</span
-              ><input
-                id="hub-collect"
-                v-model="form.collect_enabled"
-                type="checkbox"
-                class="toggle toggle-primary toggle-sm"
-            /></label>
-            <p class="text-xs text-base-content/60">
-              {{ form.enabled ? t('hub.enabledHint') : t('hub.disabledHint') }}
-            </p>
-          </div>
+          <p
+            class="rounded-xl border border-base-content/10 bg-base-200 p-4 text-sm leading-relaxed text-base-content/70"
+          >
+            {{ t('hub.managedHint') }}
+          </p>
         </fieldset>
       </form>
       <p
@@ -597,13 +542,7 @@ function select(item: HubInstance) {
           class="btn-primary btn-sm"
           :loading="busy"
           :disabled="testing || loadingConfig || !!(editing && !originalURL)"
-          >{{
-            editing
-              ? t('hub.save')
-              : form.enabled
-                ? t('hub.testAndAdd')
-                : t('hub.add')
-          }}</Button
+          >{{ editing ? t('hub.save') : t('hub.testAndAdd') }}</Button
         >
       </template>
     </Modal>

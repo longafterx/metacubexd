@@ -653,6 +653,13 @@
   "quality": "品質",
   "sortDefault": "デフォルト",
   "hub": {
+    "managed": "Managed by Hub",
+    "managedHint": "Once added, Hub manages this instance and collects history continuously, even after you close the browser. To stop, delete the instance; you can keep its history.",
+    "switchInstance": "Switch instance",
+    "instanceStatus": "Instance collection status",
+    "displaying": "Displaying",
+    "collecting": "Collecting",
+    "manageInstances": "Manage instances",
     "instances": "Instances",
     "history": "Traffic history",
     "instanceHint": "Manage Controllers here. Choose an instance to open its XD dashboard; history collection runs on the server.",

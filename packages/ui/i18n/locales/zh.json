@@ -653,6 +653,13 @@
   "quality": "质量",
   "sortDefault": "默认",
   "hub": {
+    "managed": "Hub 管理中",
+    "managedHint": "接入后由 Hub 统一管理并持续采集历史，关闭浏览器也会继续。需要停止时请删除实例，可选择保留历史。",
+    "switchInstance": "切换实例",
+    "instanceStatus": "实例采集状态",
+    "displaying": "显示中",
+    "collecting": "采集中",
+    "manageInstances": "管理实例",
     "instances": "实例管理",
     "history": "历史流量",
     "instanceHint": "在这里管理 Controller，选择实例进入 XD 面板；历史数据由服务端持续采集。",
