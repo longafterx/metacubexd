@@ -51,7 +51,7 @@ async function logout() {
       t('hub.history')
     }}</NuxtLink>
     <span v-if="hub.error || logoutError" role="alert" class="text-error">{{
-      hub.error || logoutError
+      hub.error ? t('hub.listRefreshFailed') : logoutError
     }}</span>
     <button class="btn ml-auto btn-ghost btn-sm" @click="logout">
       {{ t('hub.logout') }}

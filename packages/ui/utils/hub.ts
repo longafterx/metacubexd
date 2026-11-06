@@ -74,6 +74,31 @@ export interface HubConnection {
 }
 let csrf = ''
 let redirecting = false
+export class HubAPIError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+    public status: number,
+  ) {
+    super(message)
+    this.name = 'HubAPIError'
+  }
+}
+
+export function hubErrorKey(error: unknown) {
+  if (!(error instanceof HubAPIError)) return 'hub.errors.network'
+  const codes: Record<string, string> = {
+    instance_conflict: 'conflict',
+    invalid_instance: 'invalid',
+    instance_not_found: 'notFound',
+    controller_unavailable: 'controller',
+    csrf_failed: 'csrf',
+    rate_limited: 'rateLimit',
+    unauthorized: 'session',
+    storage_error: 'storage',
+  }
+  return `hub.errors.${codes[error.code] || 'request'}`
+}
 export async function hubRequest<T>(
   path: string,
   options: { method?: string; body?: unknown; signal?: AbortSignal } = {},
@@ -104,11 +129,15 @@ export async function hubRequest<T>(
       redirecting = true
       window.location.replace('/login')
     }
-    throw new Error('Session expired')
+    throw new HubAPIError('unauthorized', 'Session expired', 401)
   }
   const result = await response.json()
   if (!response.ok || result.error)
-    throw new Error(result.error?.message || 'Request failed')
+    throw new HubAPIError(
+      result.error?.code || 'request_failed',
+      result.error?.message || 'Request failed',
+      response.status,
+    )
   return result
 }
 export function hubEndpoint(instance: HubInstance, origin: string) {

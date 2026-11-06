@@ -1,11 +1,44 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { effectScope } from 'vue'
 import { useHubHistory } from '../../composables/useHubHistory'
-import { hubEndpoint, hubRequest, hubWindow } from '../hub'
+import {
+  HubAPIError,
+  hubEndpoint,
+  hubErrorKey,
+  hubRequest,
+  hubWindow,
+} from '../hub'
 import { getHubHistory, hubTrend } from '../hubAnalytics'
 
 beforeEach(() => vi.restoreAllMocks())
 describe('hub 平台适配', () => {
+  it('保留 API 错误代码与状态供管理页提供明确反馈', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: null,
+            error: {
+              code: 'instance_conflict',
+              message: 'instance name already exists',
+            },
+          }),
+          { status: 409 },
+        ),
+      ),
+    )
+    await expect(hubRequest('/api/v1/instances')).rejects.toMatchObject({
+      code: 'instance_conflict',
+      status: 409,
+    })
+    expect(
+      hubErrorKey(new HubAPIError('instance_conflict', 'conflict', 409)),
+    ).toBe('hub.errors.conflict')
+    expect(hubErrorKey(new TypeError('Failed to fetch'))).toBe(
+      'hub.errors.network',
+    )
+  })
   it('endpoint 只使用同源 Gateway，不携带密钥', () => {
     const item = {
       id: 'abc',
