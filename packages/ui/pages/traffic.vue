@@ -16,6 +16,7 @@ import {
 import dayjs from 'dayjs'
 import { useDataUsage } from '~/composables/useDataUsage'
 import { formatBytes, formatDuration } from '~/utils'
+const hubMode = useRuntimeConfig().public.mihomoHub
 
 const { t } = useI18n()
 const connectionsStore = useConnectionsStore()
@@ -96,6 +97,7 @@ const getTimeRange = () => {
 }
 
 const fetchData = async () => {
+  if (hubMode) return
   const { startTime, endTime } = getTimeRange()
 
   // Dynamic bucket size based on time range to prevent overly dense charts
@@ -274,7 +276,8 @@ const currentViewLabel = computed(
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-4 overflow-hidden">
+  <HubTraffic v-if="hubMode" />
+  <div v-else class="flex h-full flex-col gap-4 overflow-hidden">
     <!-- Header Row -->
     <div
       class="animate-fade-slide-in flex shrink-0 flex-wrap items-center justify-between gap-3 px-1"

@@ -10,7 +10,8 @@ const isDev = process.env.NODE_ENV === 'development'
 // A service worker is pointless in the packaged app (loaded from the in-process
 // loopback server, no offline benefit) and only adds stale-cache risk + console
 // noise, so the whole PWA/SW layer is disabled for that target.
-const pwaDisabled = process.env.MCXD_DISABLE_PWA === 'true'
+const hubBuild = process.env.MIHOMOHUB_BUILD === 'true'
+const pwaDisabled = hubBuild || process.env.MCXD_DISABLE_PWA === 'true'
 
 const appBaseURL = process.env.NUXT_APP_BASE_URL || '/'
 
@@ -20,9 +21,12 @@ export default defineNuxtConfig({
   // never depends on Nuxt 4 auto-detection.
   srcDir: '.',
 
-  devtools: { enabled: true },
+  devtools: { enabled: !hubBuild },
 
-  css: ['~/assets/css/main.css'],
+  css: [
+    '~/assets/css/main.css',
+    ...(hubBuild ? ['~/assets/css/hub-fonts.css'] : []),
+  ],
 
   // CSR mode - disable SSR completely
   ssr: false,
@@ -51,6 +55,7 @@ export default defineNuxtConfig({
     public: {
       appVersion: pkg.version,
       mockMode: process.env.MOCK_MODE === 'true',
+      mihomoHub: hubBuild,
       defaultBackendURL: '',
       githubToken: '',
     },
@@ -61,7 +66,7 @@ export default defineNuxtConfig({
     '@vueuse/nuxt',
     '@pinia/nuxt',
     '@nuxtjs/i18n',
-    '@nuxt/fonts',
+    ...(hubBuild ? [] : ['@nuxt/fonts']),
     '@vite-pwa/nuxt',
   ],
 
@@ -150,21 +155,25 @@ export default defineNuxtConfig({
   },
 
   // Fonts configuration - using Ubuntu font
-  fonts: {
-    families: [
-      {
-        name: 'Ubuntu',
-        provider: 'google',
-        weights: [300, 400, 500, 700],
-        styles: ['normal', 'italic'],
-      },
-    ],
-    defaults: {
-      weights: [400, 700],
-      styles: ['normal'],
-      subsets: ['latin', 'latin-ext', 'cyrillic', 'cyrillic-ext'],
-    },
-  },
+  ...(hubBuild
+    ? {}
+    : {
+        fonts: {
+          families: [
+            {
+              name: 'Ubuntu',
+              provider: 'google',
+              weights: [300, 400, 500, 700],
+              styles: ['normal', 'italic'],
+            },
+          ],
+          defaults: {
+            weights: [400, 700],
+            styles: ['normal'],
+            subsets: ['latin', 'latin-ext', 'cyrillic', 'cyrillic-ext'],
+          },
+        },
+      }),
 
   // TypeScript configuration
   typescript: {

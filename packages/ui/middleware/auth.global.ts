@@ -1,4 +1,4 @@
-export default defineNuxtRouteMiddleware((to) => {
+export default defineNuxtRouteMiddleware(async (to) => {
   // Skip middleware on server
   if (import.meta.server) return
 
@@ -8,6 +8,20 @@ export default defineNuxtRouteMiddleware((to) => {
     return
   }
 
+  if (config.public.mihomoHub) {
+    try {
+      await useHubStore().refresh()
+    } catch {
+      return abortNavigation()
+    }
+    if (to.path === '/' || to.path === '/setup' || to.path === '/traffic')
+      return
+    if (!useEndpointStore().currentEndpoint)
+      return navigateTo('/setup', { replace: true })
+    if (to.path === '/control' || to.path.startsWith('/profiles'))
+      return navigateTo('/setup')
+    return
+  }
   const endpointStore = useEndpointStore()
   const hasEndpoint = !!endpointStore.currentEndpoint
 

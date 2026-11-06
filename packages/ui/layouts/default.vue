@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useMockMode } from '~/composables/useApi'
 import { useKeyboardShortcuts } from '~/composables/useKeyboardShortcuts'
+const hubMode = useRuntimeConfig().public.mihomoHub
 
 const configStore = useConfigStore()
 const endpointStore = useEndpointStore()
@@ -96,6 +97,8 @@ const hasEndpoint = computed(
 
     <!-- Custom desktop title bar (desktop shell only; web build skips it). -->
     <TitleBar v-if="isDesktop" />
+
+    <HubSessionBar v-if="hubMode" />
 
     <!-- Sidebar + page content fill the height below the title bar. -->
     <div class="relative flex min-h-0 flex-1 flex-col">

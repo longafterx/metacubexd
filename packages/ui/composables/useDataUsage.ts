@@ -1,5 +1,6 @@
 import type { DataUsageType } from '~/types'
 import { db } from '~/utils/db'
+import { getHubHistory } from '~/utils/hubAnalytics'
 
 export interface AggregatedData {
   label: string
@@ -284,6 +285,7 @@ export const useDataUsage = () => {
   }
 
   return {
+    getServerHistory: getHubHistory,
     getAggregatedData,
     getSubStatsByHost,
     getProxyStatsByHost,

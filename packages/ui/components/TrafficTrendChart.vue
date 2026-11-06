@@ -5,8 +5,8 @@ import { formatBytes, getChartThemeColors } from '~/utils'
 
 interface TrendPoint {
   timestamp: number
-  upload: number
-  download: number
+  upload: number | null
+  download: number | null
 }
 
 const props = defineProps<{

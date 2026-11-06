@@ -11,6 +11,7 @@ import { CONNECTIONS_TABLE_MAX_CLOSED_ROWS } from '~/constants'
 import { db } from '~/utils/db'
 
 export const useConnectionsStore = defineStore('connections', () => {
+  const hubMode = useRuntimeConfig().public.mihomoHub
   const globalStore = useGlobalStore()
   const configStore = useConfigStore()
 
@@ -39,6 +40,7 @@ export const useConnectionsStore = defineStore('connections', () => {
     `${log.timestamp}\x1F${log.sourceIP}\x1F${log.host}\x1F${log.outbound}\x1F${log.process}\x1F${log.inboundUser}`
 
   const flushLogs = async () => {
+    if (hubMode) return
     if (logBuffer.size === 0) return
     const logsToFlush = Array.from(logBuffer.values())
     logBuffer.clear()
@@ -198,7 +200,7 @@ export const useConnectionsStore = defineStore('connections', () => {
       currentDownloadTotal < lastDownloadTotal
     ) {
       resetConnectionTracking()
-      clearDataUsage()
+      if (!hubMode) clearDataUsage()
       globalStore.clearChartHistory()
     }
 
@@ -209,7 +211,7 @@ export const useConnectionsStore = defineStore('connections', () => {
 
     // An empty snapshot still starts the tracking session, so connections
     // appearing in a later snapshot include their initial bytes.
-    if (configStore.enableDataUsageTracking) {
+    if (!hubMode && configStore.enableDataUsageTracking) {
       updateDataUsage(rawConns)
     }
 

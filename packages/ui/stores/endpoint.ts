@@ -1,10 +1,35 @@
 import type { Endpoint } from '~/types'
 import { defineStore } from 'pinia'
+import { hubEndpoint } from '~/utils/hub'
 
 export const useEndpointStore = defineStore('endpoint', () => {
   // State
   const selectedEndpoint = useLocalStorage<string>('selectedEndpoint', '')
-  const endpointList = useLocalStorage<Endpoint[]>('endpointList', [])
+  const hubMode = useRuntimeConfig().public.mihomoHub
+  const hub = useHubStore()
+  const localEndpoints = hubMode
+    ? ref<Endpoint[]>([])
+    : useLocalStorage<Endpoint[]>('endpointList', [])
+  const endpointList = computed<Endpoint[]>({
+    get: () =>
+      hubMode
+        ? hub.instances
+            .filter((i) => i.enabled)
+            .map((i) => hubEndpoint(i, window.location.origin))
+        : localEndpoints.value,
+    set: (list) => {
+      if (!hubMode) localEndpoints.value = list
+    },
+  })
+  if (hubMode)
+    watch(
+      endpointList,
+      (list) => {
+        if (!list.some((i) => i.id === selectedEndpoint.value))
+          selectedEndpoint.value = list[0]?.id || ''
+      },
+      { immediate: true },
+    )
 
   // Getters
   const currentEndpoint = computed(() =>

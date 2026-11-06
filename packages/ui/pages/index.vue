@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { IconServer, IconSettings } from '@tabler/icons-vue'
+const hubMode = useRuntimeConfig().public.mihomoHub
 
 const { t } = useI18n()
 
@@ -21,6 +22,7 @@ const connectForm = ref<{
 const hasSavedEndpoints = computed(() => endpointStore.endpointList.length > 0)
 
 onMounted(async () => {
+  if (runtimeConfig.public.mihomoHub) return
   // Mock demos and already-connected users skip the entry entirely.
   if (runtimeConfig.public.mockMode || endpointStore.currentEndpoint) {
     router.replace(`/${configStore.defaultPage || 'overview'}`)
@@ -32,7 +34,9 @@ onMounted(async () => {
 </script>
 
 <template>
+  <HubInstances v-if="hubMode" />
   <div
+    v-else
     class="flex h-full items-center justify-center overflow-y-auto bg-base-100 p-4"
   >
     <div class="animate-spring-up mx-auto w-full max-w-md">

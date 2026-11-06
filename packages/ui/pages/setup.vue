@@ -7,6 +7,7 @@ import {
   IconX,
 } from '@tabler/icons-vue'
 import { useSortable } from '@vueuse/integrations/useSortable'
+const hubMode = useRuntimeConfig().public.mihomoHub
 
 definePageMeta({
   layout: 'default',
@@ -50,6 +51,7 @@ useSortable(endpointListRef, endpointOrder, {
 // Auto-login only honors a ?hostname deep-link here; the default-backend probe
 // belongs to the '/' landing entry, so this manager never auto-connects blind.
 onMounted(async () => {
+  if (hubMode) return
   await connectForm.value?.autoLogin(route.query as Record<string, any>, {
     tryDefault: false,
   })
@@ -57,7 +59,9 @@ onMounted(async () => {
 </script>
 
 <template>
+  <HubInstances v-if="hubMode" />
   <div
+    v-else
     class="flex h-full items-center justify-center overflow-y-auto bg-base-100 p-4"
   >
     <div class="animate-spring-up mx-auto w-full max-w-md">
