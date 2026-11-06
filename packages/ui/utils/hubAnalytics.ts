@@ -81,3 +81,40 @@ export function hubTrend(history: Pick<HubHistory, 'window' | 'traffic'>) {
   }
   return result
 }
+
+export interface HubUsageRow {
+  label: string
+  upload: number
+  download: number
+  total: number
+}
+
+/** 只适配服务端已聚合的窗口流量，不从连接生命周期量重建归因。 */
+export function hubUsageRows(top: readonly HubTop[]): HubUsageRow[] {
+  return top.map((item) => ({
+    label: item.value,
+    upload: item.upload_bytes,
+    download: item.download_bytes,
+    total: item.upload_bytes + item.download_bytes,
+  }))
+}
+
+/** 搜索与排序只作用于当前 TOP 列表，不能改变总量卡片或趋势。 */
+export function filterHubUsage(
+  rows: readonly HubUsageRow[],
+  search: string,
+  field: keyof HubUsageRow,
+  descending: boolean,
+): HubUsageRow[] {
+  const query = search.trim().toLocaleLowerCase()
+  return rows
+    .filter((row) => row.label.toLocaleLowerCase().includes(query))
+    .sort((a, b) => {
+      const difference =
+        field === 'label' ? a.label.localeCompare(b.label) : a[field] - b[field]
+      return (
+        (descending ? -difference : difference) ||
+        a.label.localeCompare(b.label)
+      )
+    })
+}

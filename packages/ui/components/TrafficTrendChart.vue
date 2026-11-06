@@ -90,8 +90,21 @@ const initChart = () => {
 
 const updateData = () => {
   if (!chart) return
-  const uploadSeries = props.data.map((d) => [d.timestamp, d.upload])
-  const downloadSeries = props.data.map((d) => [d.timestamp, d.download])
+  // 未观测桶保持断点；孤立的有效桶用小圆点表示，避免新实例已有流量却显示空图。
+  const seriesData = (field: 'upload' | 'download') =>
+    props.data.map((point, index) => ({
+      x: point.timestamp,
+      y: point[field],
+      marker: {
+        enabled:
+          point[field] != null &&
+          props.data[index - 1]?.[field] == null &&
+          props.data[index + 1]?.[field] == null,
+        radius: 2,
+      },
+    }))
+  const uploadSeries = seriesData('upload')
+  const downloadSeries = seriesData('download')
   chart.series[0]?.setData(uploadSeries, false)
   chart.series[1]?.setData(downloadSeries, false)
   chart.xAxis[0]?.update(
@@ -99,8 +112,10 @@ const updateData = () => {
       min: props.startTime,
       max: props.endTime,
     },
-    true,
+    false,
   )
+  // 先同步坐标范围再重绘，避免稀疏数据从空轴范围动画到远离画布的位置。
+  chart.redraw(false)
 }
 
 watch(() => props.data, updateData, { deep: true })
@@ -146,7 +161,7 @@ onMounted(async () => {
       chart.setSize(
         containerRef.value.clientWidth,
         containerRef.value.clientHeight,
-        true,
+        false,
       )
     }
   })

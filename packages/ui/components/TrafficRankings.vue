@@ -6,9 +6,10 @@ import { formatBytes } from '~/utils'
 defineProps<{
   title: string
   icon?: Component
-  data: AggregatedData[]
+  data: Omit<AggregatedData, 'count'>[]
   selectedRow: string | null
   labelFormatter?: (label: string) => string
+  emptyLabel?: string
   labelTitle?: (label: string) => string
 }>()
 
@@ -29,13 +30,14 @@ const { t } = useI18n()
 
     <!-- List -->
     <div class="flex-1 touch-pan-y overflow-y-auto pr-2">
-      <div
+      <button
         v-for="row in data"
         :key="row.label"
-        class="mb-2 flex cursor-pointer flex-col gap-1 rounded-lg p-2 transition-colors hover:bg-base-content/5"
+        class="mb-2 flex w-full cursor-pointer flex-col gap-1 rounded-lg p-2 text-left transition-colors hover:bg-base-content/5 focus-visible:outline-2 focus-visible:outline-primary"
         :class="{
           'bg-primary/10! shadow-sm': selectedRow === row.label,
         }"
+        :aria-pressed="selectedRow === row.label"
         @click="emit('select', row.label)"
       >
         <div class="flex items-center justify-between gap-2">
@@ -50,7 +52,7 @@ const { t } = useI18n()
             >{{
               row.kind === 'sourceIP' && labelFormatter
                 ? labelFormatter(row.label)
-                : row.label
+                : row.label || emptyLabel
             }}</span
           >
           <span
@@ -74,7 +76,7 @@ const { t } = useI18n()
             <span>{{ formatBytes(row.download) }}</span>
           </div>
         </div>
-      </div>
+      </button>
       <div
         v-if="!data.length"
         class="py-8 text-center text-sm text-base-content/60"

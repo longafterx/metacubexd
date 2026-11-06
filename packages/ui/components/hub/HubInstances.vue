@@ -384,7 +384,7 @@ function select(item: HubInstance) {
       </article>
     </section>
     <NuxtLink to="/traffic" class="pb-4 text-sm text-primary"
-      >{{ t('hub.history') }} →</NuxtLink
+      >{{ t('dataUsage') }} →</NuxtLink
     >
 
     <Modal

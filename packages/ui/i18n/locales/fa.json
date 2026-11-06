@@ -653,6 +653,13 @@
   "quality": "کیفیت",
   "sortDefault": "پیش‌فرض",
   "hub": {
+    "usage": {
+      "details": "Usage details",
+      "ranking": "Top {dimension}",
+      "search": "Search current TOP 20",
+      "tableHint": "Sampled attribution for this dimension · TOP 20",
+      "collectionDetails": "Collection details and historical connections"
+    },
     "managed": "Managed by Hub",
     "managedHint": "Once added, Hub manages this instance and collects history continuously, even after you close the browser. To stop, delete the instance; you can keep its history.",
     "switchInstance": "Switch instance",

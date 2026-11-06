@@ -123,7 +123,7 @@ async function logout() {
       }}</span>
     </div>
     <NuxtLink to="/traffic" class="ml-auto shrink-0 hover:text-primary">{{
-      t('hub.history')
+      t('dataUsage')
     }}</NuxtLink>
     <button class="btn shrink-0 btn-ghost btn-sm" @click="logout">
       {{ t('hub.logout') }}
