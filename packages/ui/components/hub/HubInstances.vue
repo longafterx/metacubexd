@@ -122,8 +122,13 @@ function credentials() {
   const body: Record<string, unknown> = {
     controller_url: form.controller_url.trim(),
   }
-  if (secretAction.value !== 'keep')
-    body.secret = secretAction.value === 'replace' ? form.secret : ''
+  if (secretAction.value === 'replace') body.secret = form.secret
+  // 无密钥实例的普通编辑省略 Secret，避免改名/停用也触发连接配置的 DNS 校验。
+  else if (
+    secretAction.value === 'none' &&
+    (!editing.value || editing.value.has_secret)
+  )
+    body.secret = ''
   return body
 }
 async function probe() {
