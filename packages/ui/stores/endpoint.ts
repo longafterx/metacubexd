@@ -10,13 +10,29 @@ export const useEndpointStore = defineStore('endpoint', () => {
   const localEndpoints = hubMode
     ? ref<Endpoint[]>([])
     : useLocalStorage<Endpoint[]>('endpointList', [])
+  // 列表每 5 秒刷新健康状态；复用 Endpoint 对象，避免实时页误判为切换实例并清空连接。
+  const adapted = new Map<string, Endpoint>()
+  function serverEndpoints() {
+    const list = hub.instances
+      .filter((item) => item.enabled)
+      .map((item) => {
+        const value = hubEndpoint(item, window.location.origin)
+        const existing = adapted.get(item.id)
+        if (
+          existing &&
+          existing.url === value.url &&
+          existing.label === value.label
+        )
+          return existing
+        adapted.set(item.id, value)
+        return value
+      })
+    for (const id of adapted.keys())
+      if (!list.some((item) => item.id === id)) adapted.delete(id)
+    return list
+  }
   const endpointList = computed<Endpoint[]>({
-    get: () =>
-      hubMode
-        ? hub.instances
-            .filter((i) => i.enabled)
-            .map((i) => hubEndpoint(i, window.location.origin))
-        : localEndpoints.value,
+    get: () => (hubMode ? serverEndpoints() : localEndpoints.value),
     set: (list) => {
       if (!hubMode) localEndpoints.value = list
     },

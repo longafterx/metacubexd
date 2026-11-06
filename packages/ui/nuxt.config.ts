@@ -203,7 +203,7 @@ export default defineNuxtConfig({
       charset: 'utf-8',
       viewport:
         'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover',
-      title: 'MetaCubeXD',
+      title: hubBuild ? 'MihomoHub' : 'MetaCubeXD',
       meta: [{ name: 'theme-color', content: '#000000' }],
       link: [
         { rel: 'icon', type: 'image/svg+xml', href: 'favicon.svg' },
@@ -261,5 +261,5 @@ export default defineNuxtConfig({
     appManifest: false,
   },
 
-  compatibilityDate: 'latest',
+  compatibilityDate: hubBuild ? '2026-11-06' : 'latest',
 })

@@ -680,7 +680,8 @@
       "offline": "Offline",
       "backoff": "Retrying",
       "stopped": "Stopped",
-      "idle": "Idle"
+      "idle": "Idle",
+      "capacity_limited": "Collection capacity reached"
     },
     "dimensions": {
       "host": "Host",

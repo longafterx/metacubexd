@@ -736,7 +736,8 @@
       "offline": "离线",
       "backoff": "等待重试",
       "stopped": "已停止",
-      "idle": "空闲"
+      "idle": "空闲",
+      "capacity_limited": "采集容量已满"
     },
     "dimensions": {
       "host": "域名",
