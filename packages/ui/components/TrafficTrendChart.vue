@@ -24,12 +24,30 @@ let chart: Highcharts.Chart | undefined
 let hc: typeof Highcharts | undefined
 let resizeObserver: ResizeObserver | undefined
 
+// 未观测桶保持断点；孤立的有效桶用小圆点表示，避免新实例已有流量却显示空图。
+const seriesData = (field: 'upload' | 'download') =>
+  props.data.map((point, index) => ({
+    x: point.timestamp,
+    y: point[field],
+    marker: {
+      enabled:
+        point[field] != null &&
+        props.data[index - 1]?.[field] == null &&
+        props.data[index + 1]?.[field] == null,
+      radius: 2,
+    },
+  }))
+
 const initChart = () => {
   if (!containerRef.value || !hc) return
   const themeColors = getChartThemeColors()
 
   chart = hc.chart(containerRef.value, {
-    chart: { type: 'areaspline', backgroundColor: 'transparent' },
+    chart: {
+      type: 'areaspline',
+      backgroundColor: 'transparent',
+      animation: false,
+    },
     title: { text: undefined },
     credits: { enabled: false },
     accessibility: { enabled: false },
@@ -65,6 +83,7 @@ const initChart = () => {
       },
     },
     plotOptions: {
+      series: { animation: false },
       areaspline: {
         fillOpacity: 0.15,
         marker: { enabled: false },
@@ -75,13 +94,13 @@ const initChart = () => {
       {
         type: 'areaspline',
         name: t('upload'),
-        data: [],
+        data: seriesData('upload'),
         color: themeColors.seriesColors[0],
       },
       {
         type: 'areaspline',
         name: t('download'),
-        data: [],
+        data: seriesData('download'),
         color: themeColors.seriesColors[1],
       },
     ],
@@ -90,19 +109,6 @@ const initChart = () => {
 
 const updateData = () => {
   if (!chart) return
-  // 未观测桶保持断点；孤立的有效桶用小圆点表示，避免新实例已有流量却显示空图。
-  const seriesData = (field: 'upload' | 'download') =>
-    props.data.map((point, index) => ({
-      x: point.timestamp,
-      y: point[field],
-      marker: {
-        enabled:
-          point[field] != null &&
-          props.data[index - 1]?.[field] == null &&
-          props.data[index + 1]?.[field] == null,
-        radius: 2,
-      },
-    }))
   const uploadSeries = seriesData('upload')
   const downloadSeries = seriesData('download')
   chart.series[0]?.setData(uploadSeries, false)
@@ -155,7 +161,6 @@ watch(locale, () => {
 onMounted(async () => {
   hc = await loadHighcharts()
   initChart()
-  updateData()
   resizeObserver = new ResizeObserver(() => {
     if (chart && containerRef.value) {
       chart.setSize(
