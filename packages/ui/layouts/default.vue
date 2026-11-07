@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { useMockMode } from '~/composables/useApi'
+import { useHubInstanceQueries } from '~/composables/useHubInstanceQueries'
 import { useKeyboardShortcuts } from '~/composables/useKeyboardShortcuts'
 const hubMode = useRuntimeConfig().public.mihomoHub
 
 const configStore = useConfigStore()
 const endpointStore = useEndpointStore()
 const globalStore = useGlobalStore()
+if (hubMode) useHubInstanceQueries()
 const { isDesktop } = useDesktop()
 
 // Appearance: background image, custom theme colors, font

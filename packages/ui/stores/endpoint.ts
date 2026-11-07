@@ -39,8 +39,10 @@ export const useEndpointStore = defineStore('endpoint', () => {
   })
   if (hubMode)
     watch(
-      endpointList,
-      (list) => {
+      [endpointList, () => hub.loaded],
+      ([list]) => {
+        // 首次读取目录前不能把持久化的选择当成已删除实例，否则刷新会跳回第一项。
+        if (hub.loaded === false && list.length === 0) return
         if (!list.some((i) => i.id === selectedEndpoint.value))
           selectedEndpoint.value = list[0]?.id || ''
       },

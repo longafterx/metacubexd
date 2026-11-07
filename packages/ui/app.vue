@@ -7,6 +7,13 @@ useHead({
 })
 
 const configStore = useConfigStore()
+const hubMode = useRuntimeConfig().public.mihomoHub
+const endpointStore = hubMode ? useEndpointStore() : undefined
+const route = useRoute()
+// 切换实例重新建立当前页面，清空表单和图表的局部状态；不重新加载整个应用。
+const pageKey = computed(() =>
+  hubMode ? `${route.path}:${endpointStore?.selectedEndpoint}` : undefined,
+)
 
 // vue-sonner defaults to a light theme, but the app default theme is dark, so an
 // unbound toaster ships bright cards over a dark UI. Derive the toaster theme
@@ -37,6 +44,7 @@ onMounted(() => nextTick(syncToasterTheme))
 <template>
   <NuxtLayout>
     <NuxtPage
+      :page-key="pageKey"
       :transition="{
         name: 'page',
         mode: 'out-in',

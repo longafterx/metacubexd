@@ -104,20 +104,15 @@ async function logout() {
       :aria-label="t('hub.instanceStatus')"
       data-testid="hub-instance-status"
     >
-      <button
+      <HubInstanceStatus
         v-for="item in hub.instances"
         :key="item.id"
-        class="flex max-w-48 shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors hover:brightness-125 focus-visible:outline-2 focus-visible:outline-primary"
         :class="statusClass(item)"
-        :aria-pressed="endpoint.selectedEndpoint === item.id"
-        :title="`${item.name} · ${t(statusKey(item))}`"
-        :data-hub-quick-instance="item.id"
-        @click="select(item)"
-      >
-        <IconAntennaBars5 :size="15" class="shrink-0" />
-        <span class="truncate">{{ item.name }}</span>
-        <span class="sr-only">{{ t(statusKey(item)) }}</span>
-      </button>
+        :instance-id="item.id"
+        :name="item.name"
+        :status-label="t(statusKey(item))"
+        :current="endpoint.selectedEndpoint === item.id"
+      />
       <span v-if="!hub.instances.length" class="text-xs text-base-content/50">{{
         t('hub.emptyInstances')
       }}</span>

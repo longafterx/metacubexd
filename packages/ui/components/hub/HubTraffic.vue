@@ -21,9 +21,11 @@ import { hubTrend, hubUsageRows } from '~/utils/hubAnalytics'
 
 const { t } = useI18n()
 const hub = useHubStore()
+const endpoint = useEndpointStore()
 const { getServerHistory } = useDataUsage()
 const { data, loading, error, load, clear } = useHubHistory(getServerHistory)
-const scope = ref('all')
+// 顶部切换会重建页面，默认范围跟随当前实例；仍可显式选择全部或保留历史。
+const scope = ref(endpoint.selectedEndpoint || 'all')
 const range = ref('24')
 const dimension = ref<HubDimension>('src_ip')
 const customFrom = ref(dayjs().subtract(1, 'day').format('YYYY-MM-DDTHH:mm'))

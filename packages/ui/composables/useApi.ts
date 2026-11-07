@@ -351,18 +351,20 @@ export async function fetchBackendVersionAPI() {
   return version
 }
 
-export function fetchProxyProvidersAPI() {
+export function fetchProxyProvidersAPI(signal?: AbortSignal) {
   const request = useRequest()
 
   return request
-    .get('providers/proxies')
+    .get('providers/proxies', { signal })
     .json<{ providers: Record<string, ProxyProvider> }>()
 }
 
-export function fetchProxiesAPI() {
+export function fetchProxiesAPI(signal?: AbortSignal) {
   const request = useRequest()
 
-  return request.get('proxies').json<{ proxies: Record<string, Proxy> }>()
+  return request
+    .get('proxies', { signal })
+    .json<{ proxies: Record<string, Proxy> }>()
 }
 
 export function updateProxyProviderAPI(providerName: string) {

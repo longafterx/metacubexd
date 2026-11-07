@@ -5,6 +5,7 @@ import type {
   ProxyWithProvider,
 } from '~/types'
 import { defineStore } from 'pinia'
+import { onScopeDispose } from 'vue'
 import { toast } from 'vue-sonner'
 import {
   closeAllConnectionsAPI,
@@ -75,6 +76,33 @@ export const useProxiesStore = defineStore('proxies', () => {
     'collapsedMap',
     {},
   )
+
+  let viewGeneration = 0
+  let fetchController = new AbortController()
+  if (useRuntimeConfig().public.mihomoHub) {
+    const endpoint = useEndpointStore()
+    watch(
+      () => endpoint.selectedEndpoint,
+      () => {
+        // 同一 ID 切出再切回也属于新视图；迟到的请求不能回填新实例。
+        viewGeneration++
+        fetchController.abort()
+        fetchController = new AbortController()
+        proxies.value = []
+        proxyProviders.value = []
+        latencyMap.value = {}
+        proxyNodeMap.value = {}
+        proxiesLoaded.value = false
+        proxyLatencyTestingMap.value = {}
+        proxyGroupLatencyTestingMap.value = {}
+        proxyProviderLatencyTestingMap.value = {}
+        updatingMap.value = {}
+        isAllProviderUpdating.value = false
+      },
+      { flush: 'sync' },
+    )
+  }
+  onScopeDispose(() => fetchController.abort())
 
   // Helper: Get latency from proxy
   const getLatencyFromProxy = (
@@ -305,10 +333,13 @@ export const useProxiesStore = defineStore('proxies', () => {
 
   // Fetch proxies
   const fetchProxiesImpl = async () => {
+    const started = viewGeneration
+    const { signal } = fetchController
     const [{ providers }, { proxies: proxiesData }] = await Promise.all([
-      fetchProxyProvidersAPI(),
-      fetchProxiesAPI(),
+      fetchProxyProvidersAPI(signal),
+      fetchProxiesAPI(signal),
     ])
+    if (started !== viewGeneration) return
 
     const proxiesWithTestUrl = Object.values(proxiesData).map((proxy) => {
       if (!proxy.all?.length) return proxy
@@ -355,10 +386,14 @@ export const useProxiesStore = defineStore('proxies', () => {
   // the page can show a skeleton / empty state instead of a blank void. The
   // rejection still propagates to callers exactly as before.
   const fetchProxies = async () => {
+    const started = viewGeneration
     try {
       await fetchProxiesImpl()
+    } catch (error) {
+      // 视图切换主动取消读取，无需给已经离开的页面显示错误。
+      if (started === viewGeneration) throw error
     } finally {
-      proxiesLoaded.value = true
+      if (started === viewGeneration) proxiesLoaded.value = true
     }
   }
 
@@ -396,16 +431,22 @@ export const useProxiesStore = defineStore('proxies', () => {
 
   // Select proxy in group
   const selectProxyInGroup = async (proxy: Proxy, proxyName: string) => {
+    const started = viewGeneration
     await selectProxyInGroupAPI(proxy.name, proxyName)
+    if (started !== viewGeneration) return
     await fetchProxies()
+    if (started !== viewGeneration) return
     await closeConnectionsThroughGroup(proxy.name)
   }
 
   // Clear a manual pin on an automatic group (url-test/fallback/load-balance),
   // restoring automatic selection.
   const unfixProxyInGroup = async (groupName: string) => {
+    const started = viewGeneration
     await unfixProxyInGroupAPI(groupName)
+    if (started !== viewGeneration) return
     await fetchProxies()
+    if (started !== viewGeneration) return
     await closeConnectionsThroughGroup(groupName)
   }
 
@@ -544,6 +585,7 @@ export const useProxiesStore = defineStore('proxies', () => {
     testUrl: string | null,
     timeout: number | null,
   ) => {
+    const started = viewGeneration
     const nodeName = getNowProxyNodeName(proxyName)
     const finalTestUrl = normalizeLatencyTestUrl(testUrl)
     const nodeRecommendationStore = useNodeRecommendationStore()
@@ -559,6 +601,7 @@ export const useProxiesStore = defineStore('proxies', () => {
         finalTestUrl,
         timeout ?? configStore.latencyTestTimeoutDuration,
       )
+      if (started !== viewGeneration) return
 
       recordLatencyTestResult(nodeName, finalTestUrl, delay)
       appendLatencyHistoryEntry(nodeName, finalTestUrl, delay)
@@ -568,6 +611,7 @@ export const useProxiesStore = defineStore('proxies', () => {
         delay > 0,
       )
     } catch {
+      if (started !== viewGeneration) return
       // Transport failure (timeout/network): leave latencyMap untouched so the
       // pill keeps showing the last known value. Record a failure datapoint
       // so the stability bar / sparkline still reflect the failed attempt.
@@ -578,12 +622,14 @@ export const useProxiesStore = defineStore('proxies', () => {
       )
       nodeRecommendationStore.recordTestResult(nodeName, null, false)
     } finally {
-      proxyLatencyTestingMap.value[nodeName] = false
+      if (started === viewGeneration)
+        proxyLatencyTestingMap.value[nodeName] = false
     }
   }
 
   // Proxy group latency test
   const proxyGroupLatencyTest = async (proxyGroupName: string) => {
+    const started = viewGeneration
     const nodeRecommendationStore = useNodeRecommendationStore()
     proxyGroupLatencyTestingMap.value[proxyGroupName] = true
 
@@ -601,10 +647,13 @@ export const useProxiesStore = defineStore('proxies', () => {
         finalTestUrl,
         currentProxyGroup?.timeout ?? configStore.latencyTestTimeoutDuration,
       )
+      if (started !== viewGeneration) return
       await fetchProxies()
+      if (started !== viewGeneration) return
       recordLatencyTestResults(results, finalTestUrl)
       nodeRecommendationStore.recordBatchResults(results)
     } catch {
+      if (started !== viewGeneration) return
       // Transport failure: leave latencyMap untouched (pills keep their last
       // known values) and only record failure datapoints in history /
       // recommendation so the bar/sparkline reflect the failed attempt.
@@ -618,29 +667,33 @@ export const useProxiesStore = defineStore('proxies', () => {
       }
       nodeRecommendationStore.recordBatchResults(failedResults)
     } finally {
-      proxyGroupLatencyTestingMap.value[proxyGroupName] = false
+      if (started === viewGeneration)
+        proxyGroupLatencyTestingMap.value[proxyGroupName] = false
     }
   }
 
   // Update provider
   const updateProviderByProviderName = async (providerName: string) => {
+    const started = viewGeneration
     updatingMap.value[providerName] = true
 
     try {
       await updateProxyProviderAPI(providerName)
     } catch (error) {
-      toast.error(t(controllerErrorKey(error)))
+      if (started === viewGeneration) toast.error(t(controllerErrorKey(error)))
     }
 
+    if (started !== viewGeneration) return
     try {
       await fetchProxies()
     } finally {
-      updatingMap.value[providerName] = false
+      if (started === viewGeneration) updatingMap.value[providerName] = false
     }
   }
 
   // Update all providers
   const updateAllProvider = async () => {
+    const started = viewGeneration
     isAllProviderUpdating.value = true
 
     try {
@@ -649,12 +702,13 @@ export const useProxiesStore = defineStore('proxies', () => {
           updateProxyProviderAPI(provider.name),
         ),
       )
+      if (started !== viewGeneration) return
       const failed = results.find((result) => result.status === 'rejected')
       if (failed?.status === 'rejected')
         toast.error(t(controllerErrorKey(failed.reason)))
       await fetchProxies()
     } finally {
-      isAllProviderUpdating.value = false
+      if (started === viewGeneration) isAllProviderUpdating.value = false
     }
   }
 
@@ -662,6 +716,7 @@ export const useProxiesStore = defineStore('proxies', () => {
 
   // Proxy provider latency test
   const proxyProviderLatencyTest = async (providerName: string) => {
+    const started = viewGeneration
     const nodeRecommendationStore = useNodeRecommendationStore()
     proxyProviderLatencyTestingMap.value[providerName] = true
 
@@ -679,6 +734,7 @@ export const useProxiesStore = defineStore('proxies', () => {
         i < memberNames.length;
         i += PROVIDER_LATENCY_BATCH_SIZE
       ) {
+        if (started !== viewGeneration) return
         const batch = memberNames.slice(i, i + PROVIDER_LATENCY_BATCH_SIZE)
         await Promise.all(
           batch.map(async (memberName) => {
@@ -690,6 +746,7 @@ export const useProxiesStore = defineStore('proxies', () => {
                 finalTestUrl,
                 timeout,
               )
+              if (started !== viewGeneration) return
               results[nodeName] = delay
               recordLatencyTestResult(nodeName, finalTestUrl, delay)
               appendLatencyHistoryEntry(nodeName, finalTestUrl, delay)
@@ -699,6 +756,7 @@ export const useProxiesStore = defineStore('proxies', () => {
                 delay > 0,
               )
             } catch {
+              if (started !== viewGeneration) return
               const failedDelay = configStore.latencyQualityMap.NOT_CONNECTED
               results[nodeName] = failedDelay
               appendLatencyHistoryEntry(nodeName, finalTestUrl, failedDelay)
@@ -708,14 +766,17 @@ export const useProxiesStore = defineStore('proxies', () => {
         )
       }
 
+      if (started !== viewGeneration) return
       try {
         await fetchProxies()
       } catch {
         /* best-effort refresh */
       }
-      nodeRecommendationStore.recordBatchResults(results)
+      if (started === viewGeneration)
+        nodeRecommendationStore.recordBatchResults(results)
     } finally {
-      proxyProviderLatencyTestingMap.value[providerName] = false
+      if (started === viewGeneration)
+        proxyProviderLatencyTestingMap.value[providerName] = false
     }
   }
 

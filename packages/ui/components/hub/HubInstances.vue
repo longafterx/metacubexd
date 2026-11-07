@@ -3,7 +3,6 @@ import type { HubInstance } from '~/utils/hub'
 import type { HubControllerProtocol } from '~/utils/hubController'
 import {
   IconEdit,
-  IconExternalLink,
   IconPlus,
   IconRefresh,
   IconServer,
@@ -15,7 +14,6 @@ import { hubControllerURL, splitHubControllerURL } from '~/utils/hubController'
 const { t } = useI18n()
 const hub = useHubStore()
 const endpoints = useEndpointStore()
-const router = useRouter()
 const editor = ref<{ open: () => void; close: (force?: boolean) => void }>()
 const deletion = ref<{ open: () => void; close: (force?: boolean) => void }>()
 const editing = ref<HubInstance | null>(null)
@@ -241,10 +239,6 @@ async function confirmDelete() {
     busy.value = false
   }
 }
-function select(item: HubInstance) {
-  endpoints.setSelectedEndpoint(item.id)
-  router.push('/overview')
-}
 </script>
 
 <template>
@@ -358,13 +352,6 @@ function select(item: HubInstance) {
             }}
           </p>
           <div class="flex flex-wrap gap-1">
-            <button
-              class="btn btn-ghost btn-sm"
-              :disabled="locked"
-              @click="select(item)"
-            >
-              <IconExternalLink :size="15" />{{ t('hub.openDashboard') }}
-            </button>
             <button
               class="btn btn-ghost btn-sm"
               :disabled="locked"

@@ -43,10 +43,10 @@ export function useEndpointScopedKey(base: readonly string[]) {
 export function useProxiesQuery() {
   return useQuery({
     queryKey: useEndpointScopedKey(queryKeys.proxies),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const request = createRequest()
       const { proxies } = await request
-        .get('proxies')
+        .get('proxies', { signal })
         .json<{ proxies: Record<string, Proxy> }>()
       return proxies
     },
@@ -56,10 +56,10 @@ export function useProxiesQuery() {
 export function useProxyProvidersQuery() {
   return useQuery({
     queryKey: useEndpointScopedKey(queryKeys.proxyProviders),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const request = createRequest()
       const { providers } = await request
-        .get('providers/proxies')
+        .get('providers/proxies', { signal })
         .json<{ providers: Record<string, ProxyProvider> }>()
       return providers
     },
@@ -188,10 +188,10 @@ export function useProxyProviderHealthCheckMutation() {
 export function useRulesQuery() {
   return useQuery({
     queryKey: useEndpointScopedKey(queryKeys.rules),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const request = createRequest()
       const { rules } = await request
-        .get('rules')
+        .get('rules', { signal })
         .json<{ rules: Record<string, Omit<Rule, 'index'>> }>()
       return Object.entries(rules).map(([index, rule]) => ({
         ...rule,
@@ -223,10 +223,10 @@ export function useToggleRuleDisabledMutation() {
 export function useRuleProvidersQuery() {
   return useQuery({
     queryKey: useEndpointScopedKey(queryKeys.ruleProviders),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const request = createRequest()
       const { providers } = await request
-        .get('providers/rules')
+        .get('providers/rules', { signal })
         .json<{ providers: Record<string, RuleProvider> }>()
       return Object.values(providers)
     },
@@ -258,9 +258,9 @@ export function useUpdateRuleProviderMutation() {
 export function useConfigQuery() {
   return useQuery({
     queryKey: useEndpointScopedKey(queryKeys.config),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const request = createRequest()
-      return request.get('configs').json<Config>()
+      return request.get('configs', { signal }).json<Config>()
     },
   })
 }
@@ -353,10 +353,10 @@ export function useUpdateConfigMutation() {
 export function useVersionQuery() {
   return useQuery({
     queryKey: useEndpointScopedKey(queryKeys.version),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const request = createRequest()
       const { version } = await request
-        .get('version')
+        .get('version', { signal })
         .json<{ version: string }>()
       return version
     },

@@ -2,6 +2,7 @@
 import { useVersionQuery } from '~/composables/useQueries'
 
 const { t } = useI18n()
+const hubMode = useRuntimeConfig().public.mihomoHub
 const router = useRouter()
 const endpointStore = useEndpointStore()
 const kernelStore = useKernelStore()
@@ -32,7 +33,7 @@ const showBanner = computed(() => {
 const isMacDesktop = isDesktop && isMac
 
 function switchEndpoint() {
-  endpointStore.setSelectedEndpoint('')
+  if (!hubMode) endpointStore.setSelectedEndpoint('')
   router.push('/setup')
 }
 </script>
@@ -71,7 +72,7 @@ function switchEndpoint() {
       </div>
       <div class="flex shrink-0 items-center gap-2">
         <button
-          class="btn text-error-content btn-ghost btn-xs hover:bg-error-content/20"
+          class="btn btn-ghost text-error-content btn-xs hover:bg-error-content/20"
           :disabled="isFetching"
           @click="() => refetch()"
         >
@@ -82,7 +83,7 @@ function switchEndpoint() {
           class="btn bg-error-content/20 text-error-content btn-xs hover:bg-error-content/30"
           @click="switchEndpoint"
         >
-          {{ t('switchEndpoint') }}
+          {{ t(hubMode ? 'hub.manageInstances' : 'switchEndpoint') }}
         </button>
       </div>
     </div>

@@ -257,7 +257,7 @@ function getModeLabel(mode: string) {
 }
 
 function switchEndpoint() {
-  endpointStore.setSelectedEndpoint('')
+  if (!hubMode) endpointStore.setSelectedEndpoint('')
   router.push('/setup')
 }
 
@@ -323,7 +323,7 @@ const activeSection = ref<'core' | 'xd' | 'tools'>('core')
             class="btn btn-outline btn-info btn-sm"
             @click="switchEndpoint"
           >
-            {{ t('switchEndpoint') }}
+            {{ t(hubMode ? 'hub.manageInstances' : 'switchEndpoint') }}
           </button>
         </div>
       </div>
@@ -356,7 +356,7 @@ const activeSection = ref<'core' | 'xd' | 'tools'>('core')
             <h1 class="text-xl font-bold tracking-tight">{{ t('config') }}</h1>
             <button
               class="flex max-w-full items-center gap-1 text-xs opacity-60 transition-colors hover:opacity-100"
-              :title="t('switchEndpoint')"
+              :title="t(hubMode ? 'hub.manageInstances' : 'switchEndpoint')"
               @click="switchEndpoint"
             >
               <svg
@@ -886,6 +886,7 @@ const activeSection = ref<'core' | 'xd' | 'tools'>('core')
               </div>
 
               <div
+                v-if="!hubMode"
                 class="flex items-center justify-between gap-4 rounded-lg px-2 py-1.5 transition-colors hover:bg-base-content/5"
               >
                 <div class="flex items-center gap-2 text-sm">
@@ -1345,7 +1346,7 @@ const activeSection = ref<'core' | 'xd' | 'tools'>('core')
                 >
                   <path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" />
                 </svg>
-                {{ t('switchEndpoint') }}
+                {{ t(hubMode ? 'hub.manageInstances' : 'switchEndpoint') }}
               </Button>
 
               <Button

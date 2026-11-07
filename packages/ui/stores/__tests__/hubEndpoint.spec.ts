@@ -4,12 +4,17 @@ import { nextTick, ref } from 'vue'
 import { useEndpointStore } from '../endpoint'
 
 const instances = ref<any[]>([])
+const loaded = ref(true)
 beforeEach(() => {
+  loaded.value = true
   setActivePinia(createPinia())
   vi.stubGlobal('useRuntimeConfig', () => ({ public: { mihomoHub: true } }))
   vi.stubGlobal('useHubStore', () => ({
     get instances() {
       return instances.value
+    },
+    get loaded() {
+      return loaded.value
     },
   }))
   instances.value = [
@@ -17,6 +22,25 @@ beforeEach(() => {
   ]
 })
 describe('hub endpoint identity', () => {
+  it('目录加载前保留上次选择，加载后仍查看原实例', async () => {
+    loaded.value = false
+    instances.value = []
+    localStorage.setItem('selectedEndpoint', 'two')
+    const store = useEndpointStore()
+    expect(store.selectedEndpoint).toBe('two')
+    instances.value = ['one', 'two'].map((id) => ({
+      id,
+      name: id,
+      enabled: true,
+      gateway_url: `/mihomo/${id}`,
+    }))
+    loaded.value = true
+    await nextTick()
+    expect(store.currentEndpoint?.id).toBe('two')
+    instances.value = []
+    await nextTick()
+    expect(store.selectedEndpoint).toBe('')
+  })
   it('健康状态轮询保留对象身份，实例切换仍独立', () => {
     const store = useEndpointStore()
     store.setSelectedEndpoint('one')

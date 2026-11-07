@@ -1,6 +1,6 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick } from 'vue'
+import { nextTick, reactive } from 'vue'
 import { useProxiesStore } from '../proxies'
 
 const apiMocks = vi.hoisted(() => ({
@@ -70,11 +70,78 @@ function proxy(overrides: Record<string, unknown> = {}) {
 
 describe('stores/proxies latency state', () => {
   beforeEach(() => {
+    vi.stubGlobal('useRuntimeConfig', () => ({ public: { mihomoHub: false } }))
     setActivePinia(createPinia())
     vi.clearAllMocks()
     recordTestResultMock.mockReset()
     recordBatchResultsMock.mockReset()
     apiMocks.fetchProxyProvidersAPI.mockResolvedValue({ providers: {} })
+  })
+
+  it('切换实例清空代理缓存，旧请求即使迟到也不能覆盖新实例', async () => {
+    const endpoint = reactive({ selectedEndpoint: 'one' })
+    vi.stubGlobal('useRuntimeConfig', () => ({ public: { mihomoHub: true } }))
+    vi.stubGlobal('useEndpointStore', () => endpoint)
+    const store = useProxiesStore()
+    let finish!: (data: unknown) => void
+    apiMocks.fetchProxiesAPI.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finish = resolve
+      }),
+    )
+    const old = store.fetchProxies()
+    const signal = apiMocks.fetchProxiesAPI.mock.calls.at(
+      -1,
+    )?.[0] as AbortSignal
+    store.proxies = [proxy({ name: 'old-group', all: ['node-a'] }) as never]
+    endpoint.selectedEndpoint = 'two'
+    expect(store.proxies).toEqual([])
+    expect(store.proxiesLoaded).toBe(false)
+    expect(signal.aborted).toBe(true)
+    apiMocks.fetchProxiesAPI.mockResolvedValueOnce({
+      proxies: { fresh: proxy({ name: 'fresh', all: ['node-a'] }) },
+    })
+    await store.fetchProxies()
+    finish({ proxies: { stale: proxy({ name: 'stale', all: ['node-a'] }) } })
+    await old
+    expect(store.proxies.map((item) => item.name)).toEqual(['fresh'])
+    // 再切回同一个 ID 也属于新一轮视图，不能接收第一次请求的结果。
+    endpoint.selectedEndpoint = 'one'
+    expect(store.proxies).toEqual([])
+    expect(store.proxiesLoaded).toBe(false)
+  })
+
+  it('切回相同实例也丢弃上一轮请求和旧延迟结果', async () => {
+    const endpoint = reactive({ selectedEndpoint: 'one' })
+    vi.stubGlobal('useRuntimeConfig', () => ({ public: { mihomoHub: true } }))
+    vi.stubGlobal('useEndpointStore', () => endpoint)
+    const store = useProxiesStore()
+    let finishFetch!: (data: unknown) => void
+    let finishLatency!: (data: unknown) => void
+    apiMocks.fetchProxiesAPI.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishFetch = resolve
+      }),
+    )
+    apiMocks.proxyLatencyTestAPI.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishLatency = resolve
+      }),
+    )
+    const fetch = store.fetchProxies()
+    const latency = store.proxyLatencyTest('node-a', '', null, null)
+    endpoint.selectedEndpoint = 'two'
+    endpoint.selectedEndpoint = 'one'
+    store.proxies = [proxy({ name: 'fresh-view', all: ['node-a'] }) as never]
+    finishFetch({
+      proxies: { stale: proxy({ name: 'stale-view', all: ['node-a'] }) },
+    })
+    finishLatency({ delay: 7 })
+    await Promise.all([fetch, latency])
+    expect(store.proxies.map((item) => item.name)).toEqual(['fresh-view'])
+    expect(store.getLatencyByName('node-a', null)).toBe(0)
+    expect(recordTestResultMock).not.toHaveBeenCalled()
+    expect(store.proxyLatencyTestingMap).toEqual({})
   })
 
   it('dedupes group members so two providers contributing the same node name collapse to one entry', async () => {
