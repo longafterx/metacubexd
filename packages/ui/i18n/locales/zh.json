@@ -803,13 +803,43 @@
       "tls": "Controller TLS 握手或证书校验失败。",
       "redirect": "Controller 对 /version 返回了重定向，请确认填写的是 Controller API 端口。",
       "response": "服务没有返回有效的 Mihomo 版本信息，请确认 Controller 端口正确。",
-      "httpService": "服务返回了异常 HTTP 状态，请确认此端口提供 Mihomo Controller API。"
+      "httpService": "服务返回了异常 HTTP 状态，请确认此端口提供 Mihomo Controller API。",
+      "runtimeInvalid": "请提供一份完整的 Mihomo YAML 和有效的 DNS 设置，不能只导入 DNS 片段。",
+      "runtimeRequired": "请先导入该 Controller 的完整 YAML。",
+      "runtimeConflict": "已保存的配置发生变化，请刷新并核对后再保存。",
+      "runtimeSaveFailed": "Mihomo 已接受配置，但 Hub 保存失败。请检查运行状态，重新导入实际生效的配置后再操作。",
+      "runtimeUnconfirmed": "Mihomo 未确认配置加载结果，请先检查配置、设备权限和实例日志，再决定是否重试。",
+      "runtimeReadOnly": "Hub 已关闭运行配置修改权限。"
     },
     "listRefreshFailed": "实例列表刷新失败，当前显示上次结果；已完成的操作不受影响。",
     "instanceDisabled": "实例停用",
     "collectionPaused": "未采集",
     "controllerHost": "Controller IP / 主机",
     "controllerPort": "端口",
-    "controllerAddressHint": "只填写 Controller 的 IP 和端口，无需填写协议；新增默认使用 HTTP，默认端口 9090。"
+    "controllerAddressHint": "只填写 Controller 的 IP 和端口，无需填写协议；新增默认使用 HTTP，默认端口 9090。",
+    "control": {
+      "succeeded": "{action}：已完成",
+      "failed": "{action}：失败",
+      "session": "Hub 会话已过期，请重新登录。",
+      "forbidden": "Hub 已禁止此操作，或请求未通过校验。",
+      "unsupported": "该 Mihomo 版本不支持此操作。",
+      "invalid": "Mihomo 拒绝了配置，请检查参数及设备权限。",
+      "rateLimit": "操作过于频繁，请稍后再试。",
+      "unconfirmed": "未能确认操作结果，请先检查实例状态和日志；操作可能已经生效，请勿盲目重复提交。"
+    },
+    "dns": {
+      "note": "修改 DNS 前请导入该实例完整的 Mihomo YAML。导入仅保存配置；应用 DNS 会热加载导入的整份配置，包括其中的代理、规则和端口。",
+      "runtimeOnly": "YAML 由 Hub 在服务端加密保存，不写入设备文件。重载配置或重启内核后，会重新使用设备上的配置文件。在设备上修改配置后，请重新导入。",
+      "import": "导入完整 YAML",
+      "imported": "完整 YAML 已导入，尚未修改实例。",
+      "applied": "DNS 配置已热加载。",
+      "ready": "已导入完整 YAML",
+      "required": "请先导入完整 YAML",
+      "enable": "启用 DNS",
+      "listen": "DNS 监听地址",
+      "apply": "应用 DNS 并热加载",
+      "fileTooLarge": "请选择不超过 512 KiB 的 YAML 文件。",
+      "fileReadFailed": "无法读取 YAML 文件。"
+    }
   }
 }

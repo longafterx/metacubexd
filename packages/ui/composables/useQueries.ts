@@ -1,5 +1,10 @@
 import type { Config, Proxy, ProxyProvider, Rule, RuleProvider } from '~/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { toast } from 'vue-sonner'
+import {
+  controllerErrorKey,
+  MAINTENANCE_OPTIONS,
+} from '~/utils/controllerControl'
 import { createManagedEndpointCheck } from '~/utils/managedEndpoint'
 import { toggleRuleDisabledAPI, useMockMode, useRequest } from './useApi'
 import { useControlApi } from './useControlApi'
@@ -139,16 +144,21 @@ export function useProxyGroupLatencyTestMutation() {
 
 export function useUpdateProxyProviderMutation() {
   const queryClient = useQueryClient()
+  const { t } = useI18n()
 
   return useMutation({
     mutationFn: async (providerName: string) => {
       const request = createRequest()
-      await request.put(`providers/proxies/${encodeURIComponent(providerName)}`)
+      await request.put(
+        `providers/proxies/${encodeURIComponent(providerName)}`,
+        MAINTENANCE_OPTIONS,
+      )
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.proxies })
       queryClient.invalidateQueries({ queryKey: queryKeys.proxyProviders })
     },
+    onError: (error) => toast.error(t(controllerErrorKey(error))),
   })
 }
 
@@ -225,16 +235,21 @@ export function useRuleProvidersQuery() {
 
 export function useUpdateRuleProviderMutation() {
   const queryClient = useQueryClient()
+  const { t } = useI18n()
 
   return useMutation({
     mutationFn: async (providerName: string) => {
       const request = createRequest()
-      await request.put(`providers/rules/${encodeURIComponent(providerName)}`)
+      await request.put(
+        `providers/rules/${encodeURIComponent(providerName)}`,
+        MAINTENANCE_OPTIONS,
+      )
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.rules })
       queryClient.invalidateQueries({ queryKey: queryKeys.ruleProviders })
     },
+    onError: (error) => toast.error(t(controllerErrorKey(error))),
   })
 }
 
@@ -280,6 +295,7 @@ export async function applyConfigPatch(
 
 export function useUpdateConfigMutation() {
   const queryClient = useQueryClient()
+  const { t } = useI18n()
   const controlApi = useControlApi()
   const { hasFeature } = useControlInfo()
   const endpointStore = useEndpointStore()
@@ -328,6 +344,7 @@ export function useUpdateConfigMutation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.config })
     },
+    onError: (error) => toast.error(t(controllerErrorKey(error))),
   })
 }
 

@@ -168,12 +168,16 @@ async function onToggleRuleDisabled(rule: Rule) {
 }
 
 async function onUpdateProvider(name: string) {
-  await setUpdatingMap(name, () => updateProviderMutation.mutateAsync(name))
+  try {
+    await setUpdatingMap(name, () => updateProviderMutation.mutateAsync(name))
+  } catch {
+    /* mutation.onError 已显示失败原因，避免事件处理器产生未捕获异常。 */
+  }
 }
 
 async function onUpdateAllProvider() {
   const providers = ruleProviders.value ?? []
-  await Promise.all(
+  await Promise.allSettled(
     providers.map((provider) =>
       updateProviderMutation.mutateAsync(provider.name),
     ),

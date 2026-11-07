@@ -747,13 +747,43 @@
       "tls": "The Controller TLS handshake or certificate validation failed.",
       "redirect": "The Controller redirected /version. Check whether this is the Controller API port.",
       "response": "The service did not return a valid Mihomo version response. Check the Controller port.",
-      "httpService": "The service returned an unexpected HTTP status. Check whether the port belongs to the Mihomo Controller API."
+      "httpService": "The service returned an unexpected HTTP status. Check whether the port belongs to the Mihomo Controller API.",
+      "runtimeInvalid": "Provide one complete Mihomo YAML and valid DNS settings. A DNS fragment is not sufficient.",
+      "runtimeRequired": "Import the full YAML for this Controller first.",
+      "runtimeConflict": "The saved configuration changed. Refresh and review before saving again.",
+      "runtimeSaveFailed": "Mihomo accepted the configuration, but Hub could not save it. Check the running state and reimport the effective configuration before retrying.",
+      "runtimeUnconfirmed": "Mihomo did not confirm the configuration load. Check the configuration, device permissions, and instance logs before retrying.",
+      "runtimeReadOnly": "Hub runtime changes are disabled."
     },
     "listRefreshFailed": "Instance list refresh failed. Showing the last result; completed changes are preserved.",
     "instanceDisabled": "Instance disabled",
     "collectionPaused": "Not collecting",
     "controllerHost": "Controller IP / host",
     "controllerPort": "Port",
-    "controllerAddressHint": "Enter the Controller IP and port only. New instances use HTTP automatically; port 9090 is the default."
+    "controllerAddressHint": "Enter the Controller IP and port only. New instances use HTTP automatically; port 9090 is the default.",
+    "control": {
+      "succeeded": "{action}: completed",
+      "failed": "{action}: failed",
+      "session": "Your Hub session expired. Sign in again.",
+      "forbidden": "Hub has disabled this operation or rejected the request.",
+      "unsupported": "This Mihomo version does not support this operation.",
+      "invalid": "Mihomo rejected the settings. Check the values and device permissions.",
+      "rateLimit": "Too many changes. Wait before trying again.",
+      "unconfirmed": "The result could not be confirmed. Check the instance and its logs before retrying; the operation may already have taken effect."
+    },
+    "dns": {
+      "note": "Import this instance’s complete Mihomo YAML before editing DNS. Import only stores the configuration; applying DNS hot-loads the entire imported configuration, including its proxies, rules, and ports.",
+      "runtimeOnly": "Hub encrypts the YAML on the server. This does not write device files. Reloading or restarting Mihomo uses the device’s configuration file again. Reimport after external configuration changes.",
+      "import": "Import full YAML",
+      "imported": "Full YAML imported; the instance has not been changed.",
+      "applied": "DNS configuration hot-loaded.",
+      "ready": "Full YAML available",
+      "required": "Import a complete YAML first",
+      "enable": "Enable DNS",
+      "listen": "DNS listen address",
+      "apply": "Apply DNS and hot-load",
+      "fileTooLarge": "Choose a YAML file no larger than 512 KiB.",
+      "fileReadFailed": "The YAML file could not be read."
+    }
   }
 }

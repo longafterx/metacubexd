@@ -5,6 +5,7 @@ import type {
   ProxyWithProvider,
 } from '~/types'
 import { defineStore } from 'pinia'
+import { toast } from 'vue-sonner'
 import {
   closeAllConnectionsAPI,
   closeSingleConnectionAPI,
@@ -16,6 +17,7 @@ import {
   unfixProxyInGroupAPI,
   updateProxyProviderAPI,
 } from '~/composables/useApi'
+import { controllerErrorKey } from '~/utils/controllerControl'
 
 export interface ProxyNodeView {
   name: string
@@ -45,6 +47,7 @@ interface ProxyInfo {
 }
 
 export const useProxiesStore = defineStore('proxies', () => {
+  const { t } = useI18n()
   const configStore = useConfigStore()
   const connectionsStore = useConnectionsStore()
 
@@ -625,8 +628,8 @@ export const useProxiesStore = defineStore('proxies', () => {
 
     try {
       await updateProxyProviderAPI(providerName)
-    } catch {
-      /* empty */
+    } catch (error) {
+      toast.error(t(controllerErrorKey(error)))
     }
 
     try {
@@ -641,11 +644,14 @@ export const useProxiesStore = defineStore('proxies', () => {
     isAllProviderUpdating.value = true
 
     try {
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         proxyProviders.value.map((provider) =>
           updateProxyProviderAPI(provider.name),
         ),
       )
+      const failed = results.find((result) => result.status === 'rejected')
+      if (failed?.status === 'rejected')
+        toast.error(t(controllerErrorKey(failed.reason)))
       await fetchProxies()
     } finally {
       isAllProviderUpdating.value = false

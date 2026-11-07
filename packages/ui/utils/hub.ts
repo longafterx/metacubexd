@@ -104,6 +104,12 @@ export function hubErrorKey(error: unknown) {
     rate_limited: 'rateLimit',
     unauthorized: 'session',
     storage_error: 'storage',
+    invalid_runtime_config: 'runtimeInvalid',
+    runtime_config_required: 'runtimeRequired',
+    runtime_config_conflict: 'runtimeConflict',
+    runtime_config_save_failed: 'runtimeSaveFailed',
+    runtime_config_unconfirmed: 'runtimeUnconfirmed',
+    runtime_writes_disabled: 'runtimeReadOnly',
   }
   return `hub.errors.${codes[error.code] || 'request'}`
 }

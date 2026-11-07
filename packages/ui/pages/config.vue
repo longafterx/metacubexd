@@ -20,6 +20,7 @@ const proxiesStore = useProxiesStore()
 
 const configActions = useConfigActions()
 const runtimeConfig = useRuntimeConfig()
+const hubMode = runtimeConfig.public.mihomoHub
 
 // Appearance & settings backup
 const appearance = useAppearance()
@@ -90,7 +91,11 @@ const updateConfigMutation = useUpdateConfigMutation()
 
 // TUN PATCH (remote backends only — desktop routes through /api/control/tun).
 function saveTun(value: { enable?: boolean; stack?: string; device?: string }) {
-  updateConfigMutation.mutate({ key: 'tun', value: value as any })
+  // Mihomo 的 tun.enable 不是可选指针；只改 stack/device 时也要携带当前开关。
+  updateConfigMutation.mutate({
+    key: 'tun',
+    value: { enable: tunForm.tunEnable, ...value } as any,
+  })
 }
 
 const generalConfig = useGeneralConfig({
@@ -220,6 +225,17 @@ watch(
   },
   { immediate: true },
 )
+
+// 写入失败时恢复后端已确认的值，避免开关/端口停留在尚未生效的状态。
+watch(updateConfigMutation.isError, (failed) => {
+  if (!failed || !backendConfig.value) return
+  generalConfig.syncFromConfig(backendConfig.value)
+  if (!tunConfig.desktopMode.value) {
+    tunForm.tunEnable = backendConfig.value.tun?.enable || false
+    tunForm.tunStack = backendConfig.value.tun?.stack || 'Mixed'
+    tunForm.tunDevice = backendConfig.value.tun?.device || ''
+  }
+})
 
 // Desktop: mirror the live /api/control/tun status into the toggle + stack
 // select (the GET resolves after init(), and enable/disable update it).
@@ -747,6 +763,8 @@ const activeSection = ref<'core' | 'xd' | 'tools'>('core')
                       :id="port.key"
                       v-model.number="generalConfig.form[port.key]"
                       type="number"
+                      min="0"
+                      max="65535"
                       class="input-bordered input w-full font-mono input-sm"
                       :placeholder="t('port', { name: port.label })"
                       @change="
@@ -1376,6 +1394,7 @@ const activeSection = ref<'core' | 'xd' | 'tools'>('core')
           <div class="flex flex-col gap-3 p-4">
             <!-- Remote Config URL -->
             <form
+              v-if="!hubMode"
               class="flex flex-col gap-2 sm:flex-row"
               @submit.prevent="onFetchRemoteConfig"
             >
@@ -1525,8 +1544,15 @@ const activeSection = ref<'core' | 'xd' | 'tools'>('core')
           </div>
         </div>
 
+        <!-- Hub 使用完整 YAML 管理 DNS，避免原生 PATCH 忽略字段却报告成功。 -->
+        <HubDNSSettings
+          v-if="hubMode && !isSingBox"
+          :key="endpointStore.selectedEndpoint"
+          :instance-id="endpointStore.selectedEndpoint"
+        />
+
         <!-- DNS Settings Card (hide for sing-box) -->
-        <template v-if="!isSingBox">
+        <template v-if="!isSingBox && !hubMode">
           <div
             class="config-card animate-fade-slide-in-4 col-span-1 hidden sm:block lg:col-span-2"
             :class="{ '!block': activeSection === 'tools' }"

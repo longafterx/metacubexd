@@ -9,7 +9,12 @@ import type {
   RuleProvider,
 } from '~/types'
 import ky from 'ky'
+import { toast } from 'vue-sonner'
 import { compareVersions, isSingBoxVersion } from '~/utils'
+import {
+  controllerErrorKey,
+  MAINTENANCE_OPTIONS,
+} from '~/utils/controllerControl'
 import { useControlApi } from './useControlApi'
 import { useControlInfo } from './useControlInfo'
 import { useMockData } from './useMockData'
@@ -242,6 +247,8 @@ export function useRequest(): RequestClient {
     prefix: endpoint.url,
     headers,
     timeout: 5000,
+    // 修改类操作的响应可能在内核重启时丢失，禁止自动重试。
+    retry: { methods: ['get'] },
   })
 }
 
@@ -361,7 +368,10 @@ export function fetchProxiesAPI() {
 export function updateProxyProviderAPI(providerName: string) {
   const request = useRequest()
 
-  return request.put(`providers/proxies/${encodeURIComponent(providerName)}`)
+  return request.put(
+    `providers/proxies/${encodeURIComponent(providerName)}`,
+    MAINTENANCE_OPTIONS,
+  )
 }
 
 export function proxyProviderHealthCheckAPI(providerName: string) {
@@ -458,7 +468,10 @@ export function fetchRuleProvidersAPI() {
 export function updateRuleProviderAPI(providerName: string) {
   const request = useRequest()
 
-  return request.put(`providers/rules/${encodeURIComponent(providerName)}`)
+  return request.put(
+    `providers/rules/${encodeURIComponent(providerName)}`,
+    MAINTENANCE_OPTIONS,
+  )
 }
 
 export function toggleRuleDisabledAPI(index: number, disabled: boolean) {
@@ -479,20 +492,37 @@ export function useConfigActions() {
   const upgradingUI = ref(false)
   const restartingBackend = ref(false)
 
-  const reloadConfigFileAPI = async () => {
-    const request = useRequest()
-    reloadingConfigFile.value = true
+  const { t } = useI18n()
+  const runAction = async (
+    state: { value: boolean },
+    action: string,
+    operation: () => unknown,
+  ) => {
+    if (state.value) return false
+    state.value = true
     try {
-      await request.put('configs', {
-        searchParams: { force: true },
-        json: { path: '', payload: '' },
-      })
+      await operation()
+      toast.success(t('hub.control.succeeded', { action: t(action) }))
       return true
-    } catch {
+    } catch (error) {
+      toast.error(t('hub.control.failed', { action: t(action) }), {
+        description: t(controllerErrorKey(error)),
+      })
       return false
     } finally {
-      reloadingConfigFile.value = false
+      state.value = false
     }
+  }
+
+  const reloadConfigFileAPI = () => {
+    const request = useRequest()
+    return runAction(reloadingConfigFile, 'reloadConfig', () =>
+      request.put('configs', {
+        ...MAINTENANCE_OPTIONS,
+        searchParams: { force: true },
+        json: { path: '', payload: '' },
+      }),
+    )
   }
 
   const fetchingRemoteConfig = ref(false)
@@ -527,40 +557,25 @@ export function useConfigActions() {
     }
   }
 
-  const flushFakeIPDataAPI = async () => {
+  const flushFakeIPDataAPI = () => {
     const request = useRequest()
-    flushingFakeIPData.value = true
-    try {
-      await request.post('cache/fakeip/flush')
-    } catch {
-      /* empty */
-    } finally {
-      flushingFakeIPData.value = false
-    }
+    return runAction(flushingFakeIPData, 'flushFakeIP', () =>
+      request.post('cache/fakeip/flush', MAINTENANCE_OPTIONS),
+    )
   }
 
-  const flushDNSCacheAPI = async () => {
+  const flushDNSCacheAPI = () => {
     const request = useRequest()
-    flushingDNSCache.value = true
-    try {
-      await request.post('cache/dns/flush')
-    } catch {
-      /* empty */
-    } finally {
-      flushingDNSCache.value = false
-    }
+    return runAction(flushingDNSCache, 'flushDNSCache', () =>
+      request.post('cache/dns/flush', MAINTENANCE_OPTIONS),
+    )
   }
 
-  const updateGEODatabasesAPI = async () => {
+  const updateGEODatabasesAPI = () => {
     const request = useRequest()
-    updatingGEODatabases.value = true
-    try {
-      await request.post('configs/geo')
-    } catch {
-      /* empty */
-    } finally {
-      updatingGEODatabases.value = false
-    }
+    return runAction(updatingGEODatabases, 'updateGEODatabases', () =>
+      request.post('configs/geo', MAINTENANCE_OPTIONS),
+    )
   }
 
   const upgradeBackendAPI = async () => {
@@ -587,17 +602,11 @@ export function useConfigActions() {
     }
   }
 
-  const restartBackendAPI = async () => {
+  const restartBackendAPI = () => {
     const request = useRequest()
-    restartingBackend.value = true
-    try {
-      await request.post('restart')
-      return true
-    } catch {
-      return false
-    } finally {
-      restartingBackend.value = false
-    }
+    return runAction(restartingBackend, 'restartCore', () =>
+      request.post('restart', MAINTENANCE_OPTIONS),
+    )
   }
 
   return {
