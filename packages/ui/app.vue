@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { RouteLocationNormalizedLoaded } from 'vue-router'
 import { Toaster } from 'vue-sonner'
 import 'vue-sonner/style.css'
 
@@ -9,11 +10,15 @@ useHead({
 const configStore = useConfigStore()
 const hubMode = useRuntimeConfig().public.mihomoHub
 const endpointStore = hubMode ? useEndpointStore() : undefined
-const route = useRoute()
-// 切换实例重新建立当前页面，清空表单和图表的局部状态；不重新加载整个应用。
-const pageKey = computed(() =>
-  hubMode ? `${route.path}:${endpointStore?.selectedEndpoint}` : undefined,
-)
+const pageKey = computed(() => {
+  if (!hubMode) return undefined
+  const endpointId = endpointStore?.selectedEndpoint
+  // 使用 NuxtPage 传入的目标路由；useRoute() 要等页面完成后才同步，
+  // 用它生成 key 会在导航中再次重建页面，导致菜单高亮滞后和内容闪空。
+  // 实例仍参与 key，同页切换实例时继续重建表单和图表的局部状态。
+  return (targetRoute: RouteLocationNormalizedLoaded) =>
+    `${targetRoute.path}:${endpointId}`
+})
 
 // vue-sonner defaults to a light theme, but the app default theme is dark, so an
 // unbound toaster ships bright cards over a dark UI. Derive the toaster theme
