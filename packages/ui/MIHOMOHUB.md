@@ -13,3 +13,5 @@
 - Hub 关闭 PWA；Ubuntu Latin 300/400/500/700 字体来自 `@fontsource/ubuntu@5.2.8`，遵守随文件提供的 Ubuntu Font Licence。其他字符沿用系统字体回退。
 
 验证：`pnpm --filter @metacubexd/ui test:unit`、`pnpm --filter @metacubexd/ui typecheck`；后端 `scripts/smoke-hub.mjs` 验证真实页面与 Fake Mihomo。更新上游时，优先检查 Endpoint Store、查询缓存 key、四条 WebSocket、Agent capability probe 及普通构建行为。
+
+2026-11-10 边界修复：新增和修改地址由草稿测试接口自动识别 HTTP/HTTPS，仍只输入主机和端口；保存使用已验证的协议。实例管理“已保留的历史”列出已删除身份，并提供永久清理确认，按 UUID 区分同名新实例。跨标签页重新登录导致旧 CSRF 被明确拒绝时，平台客户端刷新令牌后只重发一次；网络中断和其他失败不重试。后端 `scripts/smoke-regressions.mjs` 覆盖这三类真实浏览器交互。

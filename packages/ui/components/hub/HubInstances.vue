@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { HubInstance } from '~/utils/hub'
+import type { HubInstance, HubRetained } from '~/utils/hub'
 import type { HubControllerProtocol } from '~/utils/hubController'
 import {
   IconEdit,
@@ -17,8 +17,15 @@ const endpoints = useEndpointStore()
 const editor = ref<{ open: () => void; close: (force?: boolean) => void }>()
 const deletion = ref<{ open: () => void; close: (force?: boolean) => void }>()
 const editing = ref<HubInstance | null>(null)
-const pendingDelete = ref<HubInstance | null>(null)
+const pendingDelete = ref<HubInstance | HubRetained | null>(null)
 const history = ref<'retain' | 'purge'>('retain')
+const retained = ref<HubRetained[]>([])
+const retainedLoading = ref(false)
+const retainedError = ref('')
+const deletingRetained = computed(
+  () => !!pendingDelete.value && 'deleted_at_ms' in pendingDelete.value,
+)
+let retainedRequest: AbortController | undefined
 const busy = ref(false)
 const testing = ref(false)
 const loadingConfig = ref(false)
@@ -54,7 +61,10 @@ onMounted(() => {
     !!localStorage.getItem('endpointList') &&
     !localStorage.getItem('mihomohub_legacy_notice')
 })
-onBeforeUnmount(() => configRequest?.abort())
+onBeforeUnmount(() => {
+  configRequest?.abort()
+  retainedRequest?.abort()
+})
 // 连接参数改变后，旧的测试结果不再代表当前表单；密钥仅保存在弹窗的临时内存里。
 watch(
   () => [
@@ -154,16 +164,21 @@ async function probe() {
   testing.value = true
   connection.value = null
   try {
-    const { data } = await hubRequest<{ version: string }>(
-      '/api/v1/instances/test',
-      {
-        method: 'POST',
-        body: {
-          ...credentials(),
-          ...(editing.value ? { instance_id: editing.value.id } : {}),
-        },
+    const { data } = await hubRequest<{
+      version: string
+      controller_url: string
+    }>('/api/v1/instances/test', {
+      method: 'POST',
+      body: {
+        ...credentials(),
+        auto_detect:
+          !editing.value || controllerURL.value !== originalURL.value,
+        ...(editing.value ? { instance_id: editing.value.id } : {}),
       },
-    )
+    })
+    protocol.value = splitHubControllerURL(data.controller_url).protocol
+    // 协议自动识别也会触发表单监听器；等待监听器清理旧状态后再发布本次结果。
+    await nextTick()
     connection.value = {
       ok: true,
       message: t('hub.testSuccess', { version: data.version }),
@@ -189,7 +204,9 @@ async function save() {
   busy.value = true
   try {
     // 接入即由 Hub 管理并采集；新增前先验证连接，失败时不创建记录。
-    if (!editing.value && !connection.value?.ok && !(await probe())) return
+    const addressChanged =
+      !editing.value || controllerURL.value !== originalURL.value
+    if (addressChanged && !connection.value?.ok && !(await probe())) return
     const body: Record<string, unknown> = {
       ...credentials(),
       name: form.name.trim(),
@@ -218,9 +235,27 @@ async function refresh() {
     refreshing.value = false
   }
 }
-function askDelete(item: HubInstance) {
+async function loadRetained() {
+  retainedRequest?.abort()
+  const request = new AbortController()
+  retainedRequest = request
+  retainedLoading.value = true
+  retainedError.value = ''
+  try {
+    const { data } = await hubRequest<HubRetained[]>(
+      '/api/v1/instances/retained',
+      { signal: request.signal },
+    )
+    if (!request.signal.aborted) retained.value = data
+  } catch (cause) {
+    if (!request.signal.aborted) retainedError.value = t(hubErrorKey(cause))
+  } finally {
+    if (!request.signal.aborted) retainedLoading.value = false
+  }
+}
+function askDelete(item: HubInstance | HubRetained) {
   pendingDelete.value = item
-  history.value = 'retain'
+  history.value = 'deleted_at_ms' in item ? 'purge' : 'retain'
   deleteError.value = ''
   deletion.value?.open()
 }
@@ -228,7 +263,11 @@ async function confirmDelete() {
   if (!pendingDelete.value || busy.value) return
   busy.value = true
   try {
-    await hub.remove(pendingDelete.value.id, history.value)
+    const id = pendingDelete.value.id
+    await hub.remove(id, history.value)
+    retainedRequest?.abort()
+    retainedLoading.value = false
+    retained.value = retained.value.filter((item) => item.id !== id)
     notice.value = t(
       history.value === 'retain' ? 'hub.deletedRetained' : 'hub.deletedPurged',
     )
@@ -370,6 +409,54 @@ async function confirmDelete() {
         </div>
       </article>
     </section>
+    <details
+      class="rounded-2xl border border-base-content/10 bg-base-200 p-4"
+      data-testid="hub-retained"
+      @toggle="($event.target as HTMLDetailsElement).open && loadRetained()"
+    >
+      <summary class="cursor-pointer text-sm font-medium">
+        {{ t('hub.retainedHistory') }}
+      </summary>
+      <div class="mt-4 flex flex-col gap-3">
+        <p class="text-xs text-base-content/60">{{ t('hub.retainedHint') }}</p>
+        <Button
+          class="self-start btn-ghost btn-sm"
+          :loading="retainedLoading"
+          @click="loadRetained"
+          >{{ t('hub.refresh') }}</Button
+        >
+        <p v-if="retainedError" role="alert" class="text-sm text-error">
+          {{ retainedError }}
+        </p>
+        <p
+          v-else-if="!retainedLoading && !retained.length"
+          class="text-sm text-base-content/60"
+        >
+          {{ t('hub.noRetained') }}
+        </p>
+        <div
+          v-for="item in retained"
+          :key="item.id"
+          :data-retained-instance="item.id"
+          class="flex flex-wrap items-center justify-between gap-3 border-t border-base-content/10 pt-3"
+        >
+          <div class="min-w-0">
+            <p class="text-sm font-medium break-all">{{ item.name }}</p>
+            <p class="mt-1 text-xs text-base-content/60">
+              {{ new Date(item.deleted_at_ms).toLocaleString() }} ·
+              {{ item.id }}
+            </p>
+          </div>
+          <button
+            class="btn btn-ghost text-error btn-sm"
+            :disabled="locked"
+            @click="askDelete(item)"
+          >
+            <IconTrash :size="15" />{{ t('hub.purgeHistory') }}
+          </button>
+        </div>
+      </div>
+    </details>
     <NuxtLink to="/traffic" class="pb-4 text-sm text-primary"
       >{{ t('dataUsage') }} →</NuxtLink
     >
@@ -540,9 +627,16 @@ async function confirmDelete() {
       @close="pendingDelete = null"
     >
       <p class="mb-5 text-sm">
-        {{ t('hub.deletePrompt', { name: pendingDelete?.name }) }}
+        {{
+          t(deletingRetained ? 'hub.purgeHistoryPrompt' : 'hub.deletePrompt', {
+            name: pendingDelete?.name,
+          })
+        }}
       </p>
-      <fieldset :disabled="busy" class="flex flex-col gap-3">
+      <p v-if="deletingRetained" class="mb-4 text-sm text-error">
+        {{ t('hub.purgeHint') }}
+      </p>
+      <fieldset v-else :disabled="busy" class="flex flex-col gap-3">
         <label
           class="flex cursor-pointer items-start gap-3 rounded-xl border border-base-content/15 p-4"
           :class="history === 'retain' ? 'border-primary bg-primary/5' : ''"

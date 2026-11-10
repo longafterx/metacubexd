@@ -9,6 +9,11 @@ export interface HubInstance {
   collector_status: string
   last_seen_at_ms: number | null
 }
+export interface HubRetained {
+  id: string
+  name: string
+  deleted_at_ms: number
+}
 export interface HubCoverage {
   instance_id: string
   name: string
@@ -73,6 +78,7 @@ export interface HubConnection {
   lifetime_download_bytes: number
 }
 let csrf = ''
+let csrfPending: Promise<string> | undefined
 let redirecting = false
 export class HubAPIError extends Error {
   constructor(
@@ -119,40 +125,63 @@ export async function hubRequest<T>(
 ): Promise<HubEnvelope<T>> {
   if (!path.startsWith('/api/v1/')) throw new Error('Invalid platform path')
   const method = options.method || 'GET'
-  if (method !== 'GET' && !csrf) {
-    const me = await hubRequest<{ csrf_token: string }>('/api/v1/auth/me')
-    csrf = me.data.csrf_token
+  const refreshCSRF = () => {
+    csrfPending ??= hubRequest<{ csrf_token: string }>('/api/v1/auth/me')
+      .then(({ data }) => {
+        csrf = data.csrf_token
+        return csrf
+      })
+      .finally(() => {
+        csrfPending = undefined
+      })
+    return csrfPending
   }
-  const response = await fetch(path, {
-    method,
-    signal: options.signal,
-    credentials: 'same-origin',
-    cache: 'no-store',
-    headers: {
-      ...(options.body === undefined
-        ? {}
-        : { 'Content-Type': 'application/json' }),
-      ...(method === 'GET' ? {} : { 'X-CSRF-Token': csrf }),
-    },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  })
-  if (response.status === 401) {
-    csrf = ''
-    // 多个并发请求可能同时返回 401，只发起一次整页导航。
-    if (typeof window !== 'undefined' && !redirecting) {
-      redirecting = true
-      window.location.replace('/login')
+  if (method !== 'GET' && !csrf) await refreshCSRF()
+  for (let attempt = 0; ; attempt++) {
+    options.signal?.throwIfAborted()
+    const sentCSRF = csrf
+    const response = await fetch(path, {
+      method,
+      signal: options.signal,
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: {
+        ...(options.body === undefined
+          ? {}
+          : { 'Content-Type': 'application/json' }),
+        ...(method === 'GET' ? {} : { 'X-CSRF-Token': sentCSRF }),
+      },
+      body:
+        options.body === undefined ? undefined : JSON.stringify(options.body),
+    })
+    if (response.status === 401) {
+      csrf = ''
+      if (typeof window !== 'undefined' && !redirecting) {
+        redirecting = true
+        window.location.replace('/login')
+      }
+      throw new HubAPIError('unauthorized', 'Session expired', 401)
     }
-    throw new HubAPIError('unauthorized', 'Session expired', 401)
+    const result = await response.json()
+    // csrf_failed 由鉴权中间件在执行变更前返回，只有这一明确拒绝才允许重发一次。
+    // 网络中断、存储失败和普通 403 的结果可能不确定，绝不自动重试。
+    if (
+      method !== 'GET' &&
+      attempt === 0 &&
+      response.status === 403 &&
+      result.error?.code === 'csrf_failed'
+    ) {
+      if (csrf === sentCSRF) await refreshCSRF()
+      continue
+    }
+    if (!response.ok || result.error)
+      throw new HubAPIError(
+        result.error?.code || 'request_failed',
+        result.error?.message || 'Request failed',
+        response.status,
+      )
+    return result
   }
-  const result = await response.json()
-  if (!response.ok || result.error)
-    throw new HubAPIError(
-      result.error?.code || 'request_failed',
-      result.error?.message || 'Request failed',
-      response.status,
-    )
-  return result
 }
 export function hubEndpoint(instance: HubInstance, origin: string) {
   // A compromised/misconfigured response cannot turn the dashboard into a
